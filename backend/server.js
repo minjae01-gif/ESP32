@@ -1,5 +1,5 @@
 // =======================================
-// 🌐 기본 설정
+// 기본 설정
 // =======================================
 const express = require('express');
 const cors = require('cors');
@@ -14,7 +14,7 @@ const authRoutes = require('./routes/auth');
 const postRoutes = require('./routes/posts');
 
 // =======================================
-// 🚀 Express 앱 & HTTP 서버 + Socket.IO
+//  Express 앱 & HTTP 서버 + Socket.IO
 // =======================================
 const app = express();
 const server = http.createServer(app);
@@ -24,7 +24,7 @@ const io = new Server(server, {
 });
 
 // =======================================
-// ⚙️ 미들웨어
+//  미들웨어
 // =======================================
 app.use(cors());                   // React 통신 허용
 app.use(express.json());           // JSON 파싱
@@ -32,7 +32,7 @@ app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: true }));
 
 // =======================================
-// 📡 최신 센서 데이터 저장
+// 📡최신 센서 데이터 저장
 // =======================================
 let latestData = {
   soil: 0,
@@ -40,7 +40,7 @@ let latestData = {
 };
 
 // =======================================
-// 📡 ESP32 센서 데이터 수신 엔드포인트
+// ESP32 센서 데이터 수신 엔드포인트
 // =======================================
 app.post('/sensor', (req, res) => {
   latestData = req.body;
@@ -53,7 +53,7 @@ app.post('/sensor', (req, res) => {
 });
 
 // =======================================
-// 💻 웹 대시보드(React, HTML) 실시간 연결
+// 웹 대시보드(React, HTML) 실시간 연결
 // =======================================
 io.on('connection', (socket) => {
   console.log('💻 웹 대시보드 연결됨:', socket.id);
@@ -63,13 +63,13 @@ io.on('connection', (socket) => {
 });
 
 // =======================================
-// 📌 REST API 라우트
+// REST API 라우트
 // =======================================
 app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);
 
 // =======================================
-// 📌 기본 라우트
+// 기본 라우트
 // =======================================
 app.get('/', (req, res) => {
   res.json({
@@ -80,7 +80,7 @@ app.get('/', (req, res) => {
 });
 
 // =======================================
-// 🚀 서버 실행
+// 서버 실행
 // =======================================
 const PORT = process.env.PORT || 5000;
 

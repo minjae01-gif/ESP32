@@ -8,6 +8,10 @@ import Home from './pages/Home';
 import Community from './pages/Community';
 import WritePost from './pages/WritePost';
 import PostDetail from './pages/PostDetail';
+import Marketplace from './pages/Marketplace';
+import WriteMarketplace from './pages/WriteMarketplace';
+import EditMarketplace from './pages/EditMarketplace';
+import MarketplaceDetail from './pages/MarketplaceDetail';
 
 function App() {
   return (
@@ -49,6 +53,42 @@ function App() {
             element={
               <PrivateRoute>
                 <PostDetail />
+              </PrivateRoute>
+            } 
+          />
+          
+          <Route 
+            path="/marketplace" 
+            element={
+              <PrivateRoute>
+                <Marketplace />
+              </PrivateRoute>
+            } 
+          />
+          
+          <Route 
+            path="/marketplace/write" 
+            element={
+              <PrivateRoute>
+                <WriteMarketplace />
+              </PrivateRoute>
+            } 
+          />
+          
+          <Route 
+            path="/marketplace/edit/:id" 
+            element={
+              <PrivateRoute>
+                <EditMarketplace />
+              </PrivateRoute>
+            } 
+          />
+          
+          <Route 
+            path="/marketplace/:id" 
+            element={
+              <PrivateRoute>
+                <MarketplaceDetail />
               </PrivateRoute>
             } 
           />

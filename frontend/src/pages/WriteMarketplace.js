@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { postAPI } from '../services/api';
+import { marketplaceAPI } from '../services/api';
 import Layout from '../components/Layout';
 
-function WritePost() {
+function WriteMarketplace() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [price, setPrice] = useState('');
   const [image, setImage] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
   const [error, setError] = useState('');
@@ -15,9 +16,9 @@ function WritePost() {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // 파일 크기 체크 (10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        setError('이미지 크기는 10MB 이하여야 합니다.');
+      // 파일 크기 체크 (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('이미지 크기는 5MB 이하여야 합니다.');
         return;
       }
 
@@ -42,8 +43,13 @@ function WritePost() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!title.trim() || !content.trim()) {
-      setError('제목과 내용을 모두 입력해주세요.');
+    if (!title.trim() || !content.trim() || !price) {
+      setError('제목, 내용, 가격을 모두 입력해주세요.');
+      return;
+    }
+
+    if (price <= 0) {
+      setError('가격은 0원보다 커야 합니다.');
       return;
     }
 
@@ -55,14 +61,15 @@ function WritePost() {
       const formData = new FormData();
       formData.append('title', title);
       formData.append('content', content);
+      formData.append('price', price);
       if (image) {
         formData.append('image', image);
       }
 
-      await postAPI.createPost(formData);
-      navigate('/community');
+      await marketplaceAPI.createItem(formData);
+      navigate('/marketplace');
     } catch (error) {
-      setError(error.response?.data?.message || '게시글 작성에 실패했습니다.');
+      setError(error.response?.data?.message || '거래글 작성에 실패했습니다.');
     } finally {
       setLoading(false);
     }
@@ -71,39 +78,15 @@ function WritePost() {
   return (
     <Layout>
       <div style={styles.container}>
-        <h2 style={styles.pageTitle}>✏️ 게시글 작성</h2>
+        <h2 style={styles.pageTitle}>🛒 거래글 작성</h2>
         
         {error && <div style={styles.error}>{error}</div>}
 
         <form onSubmit={handleSubmit} style={styles.form}>
           
-          {/* 제목 */}
+          {/* 이미지 업로드 */}
           <div style={styles.inputGroup}>
-            <label style={styles.label}>제목</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="제목을 입력하세요"
-              style={styles.input}
-            />
-          </div>
-
-          {/* 내용 */}
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>내용</label>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="내용을 입력하세요"
-              style={styles.textarea}
-              rows="15"
-            />
-          </div>
-
-          {/* 이미지 업로드 (선택사항) */}
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>이미지 (선택사항)</label>
+            <label style={styles.label}>상품 이미지</label>
             <input
               type="file"
               accept="image/*"
@@ -119,13 +102,50 @@ function WritePost() {
                 />
               </div>
             )}
-            <p style={styles.hint}>* 최대 10MB, 이미지 파일만 가능</p>
+            <p style={styles.hint}>* 최대 5MB, 이미지 파일만 가능</p>
+          </div>
+
+          {/* 제목 */}
+          <div style={styles.inputGroup}>
+            <label style={styles.label}>제목</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="상품 제목을 입력하세요"
+              style={styles.input}
+            />
+          </div>
+
+          {/* 가격 */}
+          <div style={styles.inputGroup}>
+            <label style={styles.label}>가격 (원)</label>
+            <input
+              type="number"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="가격을 입력하세요"
+              style={styles.input}
+              min="0"
+            />
+          </div>
+
+          {/* 내용 */}
+          <div style={styles.inputGroup}>
+            <label style={styles.label}>상품 설명</label>
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="상품에 대한 설명을 입력하세요"
+              style={styles.textarea}
+              rows="10"
+            />
           </div>
 
           <div style={styles.buttonGroup}>
             <button 
               type="button" 
-              onClick={() => navigate('/community')}
+              onClick={() => navigate('/marketplace')}
               style={styles.cancelBtn}
             >
               취소
@@ -208,7 +228,7 @@ const styles = {
   previewContainer: {
     marginTop: '15px',
     width: '100%',
-    maxWidth: '500px',
+    maxWidth: '400px',
     border: '1px solid #ddd',
     borderRadius: '8px',
     overflow: 'hidden',
@@ -244,4 +264,4 @@ const styles = {
   },
 };
 
-export default WritePost;
+export default WriteMarketplace;

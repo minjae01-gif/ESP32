@@ -6,38 +6,9 @@ import Layout from '../components/Layout';
 function WritePost() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [image, setImage] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // 파일 크기 체크 (10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        setError('이미지 크기는 10MB 이하여야 합니다.');
-        return;
-      }
-
-      // 이미지 파일 체크
-      if (!file.type.startsWith('image/')) {
-        setError('이미지 파일만 업로드 가능합니다.');
-        return;
-      }
-
-      setImage(file);
-      setError('');
-
-      // 미리보기 생성
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewUrl(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,15 +22,7 @@ function WritePost() {
     setError('');
 
     try {
-      // FormData 생성 (이미지 업로드용)
-      const formData = new FormData();
-      formData.append('title', title);
-      formData.append('content', content);
-      if (image) {
-        formData.append('image', image);
-      }
-
-      await postAPI.createPost(formData);
+      await postAPI.createPost({ title, content });
       navigate('/community');
     } catch (error) {
       setError(error.response?.data?.message || '게시글 작성에 실패했습니다.');
@@ -76,8 +39,6 @@ function WritePost() {
         {error && <div style={styles.error}>{error}</div>}
 
         <form onSubmit={handleSubmit} style={styles.form}>
-          
-          {/* 제목 */}
           <div style={styles.inputGroup}>
             <label style={styles.label}>제목</label>
             <input
@@ -89,7 +50,6 @@ function WritePost() {
             />
           </div>
 
-          {/* 내용 */}
           <div style={styles.inputGroup}>
             <label style={styles.label}>내용</label>
             <textarea
@@ -99,27 +59,6 @@ function WritePost() {
               style={styles.textarea}
               rows="15"
             />
-          </div>
-
-          {/* 이미지 업로드 (선택사항) */}
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>이미지 (선택사항)</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-              style={styles.fileInput}
-            />
-            {previewUrl && (
-              <div style={styles.previewContainer}>
-                <img 
-                  src={previewUrl} 
-                  alt="미리보기" 
-                  style={styles.preview}
-                />
-              </div>
-            )}
-            <p style={styles.hint}>* 최대 10MB, 이미지 파일만 가능</p>
           </div>
 
           <div style={styles.buttonGroup}>
@@ -193,30 +132,6 @@ const styles = {
     borderRadius: '4px',
     resize: 'vertical',
     fontFamily: 'inherit',
-  },
-  fileInput: {
-    padding: '10px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
-  hint: {
-    margin: '5px 0 0 0',
-    fontSize: '14px',
-    color: '#999',
-  },
-  previewContainer: {
-    marginTop: '15px',
-    width: '100%',
-    maxWidth: '500px',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    overflow: 'hidden',
-  },
-  preview: {
-    width: '100%',
-    height: 'auto',
-    display: 'block',
   },
   buttonGroup: {
     display: 'flex',

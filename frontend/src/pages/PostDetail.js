@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { postAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Layout from '../components/Layout';
+import Comments from '../components/Comments';
 
 function PostDetail() {
   const { id } = useParams();
@@ -14,6 +15,8 @@ function PostDetail() {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
+  const [editImage, setEditImage] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -30,6 +33,30 @@ function PostDetail() {
       setError('게시글을 불러오는데 실패했습니다.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        setError('이미지 크기는 10MB 이하여야 합니다.');
+        return;
+      }
+
+      if (!file.type.startsWith('image/')) {
+        setError('이미지 파일만 업로드 가능합니다.');
+        return;
+      }
+
+      setEditImage(file);
+      setError('');
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -54,9 +81,18 @@ function PostDetail() {
     }
 
     try {
-      await postAPI.updatePost(id, { title: editTitle, content: editContent });
+      const formData = new FormData();
+      formData.append('title', editTitle);
+      formData.append('content', editContent);
+      if (editImage) {
+        formData.append('image', editImage);
+      }
+
+      await postAPI.updatePost(id, formData);
       alert('게시글이 수정되었습니다.');
       setIsEditing(false);
+      setEditImage(null);
+      setPreviewUrl('');
       fetchPost();
     } catch (error) {
       setError(error.response?.data?.message || '수정에 실패했습니다.');
@@ -133,10 +169,48 @@ function PostDetail() {
                 />
               </div>
 
+              <div style={styles.inputGroup}>
+                <label style={styles.label}>이미지 변경 (선택사항)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  style={styles.fileInput}
+                />
+                
+                {/* 기존 이미지 표시 */}
+                {!previewUrl && post.image_url && (
+                  <div style={styles.previewContainer}>
+                    <p style={styles.currentImageLabel}>현재 이미지:</p>
+                    <img 
+                      src={`http://localhost:5000${post.image_url}`}
+                      alt="현재 이미지" 
+                      style={styles.preview}
+                    />
+                  </div>
+                )}
+                
+                {/* 새 이미지 미리보기 */}
+                {previewUrl && (
+                  <div style={styles.previewContainer}>
+                    <p style={styles.currentImageLabel}>새 이미지 미리보기:</p>
+                    <img 
+                      src={previewUrl} 
+                      alt="미리보기" 
+                      style={styles.preview}
+                    />
+                  </div>
+                )}
+              </div>
+
               <div style={styles.buttonGroup}>
                 <button 
                   type="button" 
-                  onClick={() => setIsEditing(false)}
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditImage(null);
+                    setPreviewUrl('');
+                  }}
                   style={styles.cancelBtn}
                 >
                   취소
@@ -161,6 +235,22 @@ function PostDetail() {
               </div>
             </div>
 
+            {/* 이미지 표시 (있는 경우만) */}
+            {post.image_url && (
+              <div style={styles.imageContainer}>
+                {console.log('이미지 URL:', `http://localhost:5000${post.image_url}`)}
+                <img 
+                  src={`http://localhost:5000${post.image_url}`}
+                  alt={post.title}
+                  style={styles.postImage}
+                  onError={(e) => {
+                    console.error('이미지 로드 실패:', e.target.src);
+                    e.target.style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
+
             <div style={styles.postContent}>
               {post.content}
             </div>
@@ -181,6 +271,9 @@ function PostDetail() {
                 </button>
               </div>
             )}
+
+            {/* 댓글 섹션 */}
+            <Comments type="post" id={id} />
           </div>
         )}
       </div>
@@ -243,6 +336,18 @@ const styles = {
   date: {},
   edited: {
     color: '#4CAF50',
+  },
+  imageContainer: {
+    marginBottom: '30px',
+    width: '100%',
+    maxWidth: '100%',
+    borderRadius: '8px',
+    overflow: 'hidden',
+  },
+  postImage: {
+    width: '100%',
+    height: 'auto',
+    display: 'block',
   },
   postContent: {
     fontSize: '16px',
@@ -322,6 +427,32 @@ const styles = {
     resize: 'vertical',
     fontFamily: 'inherit',
     boxSizing: 'border-box',
+  },
+  fileInput: {
+    padding: '10px',
+    border: '1px solid #ddd',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    width: '100%',
+    boxSizing: 'border-box',
+  },
+  currentImageLabel: {
+    margin: '10px 0 5px 0',
+    fontSize: '14px',
+    color: '#666',
+  },
+  previewContainer: {
+    marginTop: '15px',
+    width: '100%',
+    maxWidth: '500px',
+    border: '1px solid #ddd',
+    borderRadius: '8px',
+    overflow: 'hidden',
+  },
+  preview: {
+    width: '100%',
+    height: 'auto',
+    display: 'block',
   },
   buttonGroup: {
     display: 'flex',

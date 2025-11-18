@@ -1,27 +1,50 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { postAPI } from '../services/api';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { marketplaceAPI } from '../services/api';
 import Layout from '../components/Layout';
 
-function WritePost() {
+function EditMarketplace() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [price, setPrice] = useState('');
   const [image, setImage] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
+  const [currentImageUrl, setCurrentImageUrl] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+  const [fetchLoading, setFetchLoading] = useState(true);
+
+  useEffect(() => {
+    fetchItem();
+  }, [id]);
+
+  const fetchItem = async () => {
+    try {
+      const response = await marketplaceAPI.getItem(id);
+      const item = response.data.item;
+      
+      setTitle(item.title);
+      setContent(item.content);
+      setPrice(item.price);
+      setCurrentImageUrl(item.image_url);
+    } catch (error) {
+      setError('거래글을 불러오는데 실패했습니다.');
+    } finally {
+      setFetchLoading(false);
+    }
+  };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // 파일 크기 체크 (10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        setError('이미지 크기는 10MB 이하여야 합니다.');
+      if (file.size > 5 * 1024 * 1024) {
+        setError('이미지 크기는 5MB 이하여야 합니다.');
         return;
       }
 
-      // 이미지 파일 체크
       if (!file.type.startsWith('image/')) {
         setError('이미지 파일만 업로드 가능합니다.');
         return;
@@ -30,7 +53,6 @@ function WritePost() {
       setImage(file);
       setError('');
 
-      // 미리보기 생성
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreviewUrl(reader.result);
@@ -42,8 +64,13 @@ function WritePost() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!title.trim() || !content.trim()) {
-      setError('제목과 내용을 모두 입력해주세요.');
+    if (!title.trim() || !content.trim() || !price) {
+      setError('제목, 내용, 가격을 모두 입력해주세요.');
+      return;
+    }
+
+    if (price <= 0) {
+      setError('가격은 0원보다 커야 합니다.');
       return;
     }
 
@@ -51,67 +78,69 @@ function WritePost() {
     setError('');
 
     try {
-      // FormData 생성 (이미지 업로드용)
       const formData = new FormData();
       formData.append('title', title);
       formData.append('content', content);
+      formData.append('price', price);
+      formData.append('status', 'selling'); // 상태 유지
+      
       if (image) {
         formData.append('image', image);
       }
 
-      await postAPI.createPost(formData);
-      navigate('/community');
+      await marketplaceAPI.updateItem(id, formData);
+      alert('거래글이 수정되었습니다.');
+      navigate(`/marketplace/${id}`);
     } catch (error) {
-      setError(error.response?.data?.message || '게시글 작성에 실패했습니다.');
+      setError(error.response?.data?.message || '거래글 수정에 실패했습니다.');
     } finally {
       setLoading(false);
     }
   };
 
+  if (fetchLoading) {
+    return (
+      <Layout>
+        <div style={styles.loading}>로딩 중...</div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div style={styles.container}>
-        <h2 style={styles.pageTitle}>✏️ 게시글 작성</h2>
+        <h2 style={styles.pageTitle}>🛒 거래글 수정</h2>
         
         {error && <div style={styles.error}>{error}</div>}
 
         <form onSubmit={handleSubmit} style={styles.form}>
           
-          {/* 제목 */}
+          {/* 이미지 업로드 */}
           <div style={styles.inputGroup}>
-            <label style={styles.label}>제목</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="제목을 입력하세요"
-              style={styles.input}
-            />
-          </div>
-
-          {/* 내용 */}
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>내용</label>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="내용을 입력하세요"
-              style={styles.textarea}
-              rows="15"
-            />
-          </div>
-
-          {/* 이미지 업로드 (선택사항) */}
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>이미지 (선택사항)</label>
+            <label style={styles.label}>상품 이미지</label>
             <input
               type="file"
               accept="image/*"
               onChange={handleImageChange}
               style={styles.fileInput}
             />
+            
+            {/* 기존 이미지 표시 */}
+            {!previewUrl && currentImageUrl && (
+              <div style={styles.previewContainer}>
+                <p style={styles.currentImageLabel}>현재 이미지:</p>
+                <img 
+                  src={`http://localhost:5000${currentImageUrl}`}
+                  alt="현재 이미지" 
+                  style={styles.preview}
+                />
+              </div>
+            )}
+            
+            {/* 새 이미지 미리보기 */}
             {previewUrl && (
               <div style={styles.previewContainer}>
+                <p style={styles.currentImageLabel}>새 이미지 미리보기:</p>
                 <img 
                   src={previewUrl} 
                   alt="미리보기" 
@@ -119,13 +148,50 @@ function WritePost() {
                 />
               </div>
             )}
-            <p style={styles.hint}>* 최대 10MB, 이미지 파일만 가능</p>
+            <p style={styles.hint}>* 최대 5MB, 이미지 파일만 가능</p>
+          </div>
+
+          {/* 제목 */}
+          <div style={styles.inputGroup}>
+            <label style={styles.label}>제목</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="상품 제목을 입력하세요"
+              style={styles.input}
+            />
+          </div>
+
+          {/* 가격 */}
+          <div style={styles.inputGroup}>
+            <label style={styles.label}>가격 (원)</label>
+            <input
+              type="number"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="가격을 입력하세요"
+              style={styles.input}
+              min="0"
+            />
+          </div>
+
+          {/* 내용 */}
+          <div style={styles.inputGroup}>
+            <label style={styles.label}>상품 설명</label>
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="상품에 대한 설명을 입력하세요"
+              style={styles.textarea}
+              rows="10"
+            />
           </div>
 
           <div style={styles.buttonGroup}>
             <button 
               type="button" 
-              onClick={() => navigate('/community')}
+              onClick={() => navigate(`/marketplace/${id}`)}
               style={styles.cancelBtn}
             >
               취소
@@ -135,7 +201,7 @@ function WritePost() {
               disabled={loading}
               style={styles.submitBtn}
             >
-              {loading ? '작성 중...' : '작성 완료'}
+              {loading ? '수정 중...' : '수정 완료'}
             </button>
           </div>
         </form>
@@ -152,6 +218,12 @@ const styles = {
     padding: '40px',
     borderRadius: '8px',
     boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+  },
+  loading: {
+    textAlign: 'center',
+    padding: '50px',
+    fontSize: '18px',
+    color: '#666',
   },
   pageTitle: {
     marginTop: 0,
@@ -205,10 +277,15 @@ const styles = {
     fontSize: '14px',
     color: '#999',
   },
+  currentImageLabel: {
+    margin: '10px 0 5px 0',
+    fontSize: '14px',
+    color: '#666',
+  },
   previewContainer: {
     marginTop: '15px',
     width: '100%',
-    maxWidth: '500px',
+    maxWidth: '400px',
     border: '1px solid #ddd',
     borderRadius: '8px',
     overflow: 'hidden',
@@ -244,4 +321,4 @@ const styles = {
   },
 };
 
-export default WritePost;
+export default EditMarketplace;

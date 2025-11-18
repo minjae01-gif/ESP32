@@ -1,6 +1,7 @@
 // 📌 Dashboard.js
 import React, { useEffect, useState } from 'react';
 import io from 'socket.io-client';
+import Layout from "../components/Layout";
 
 const socket = io("http://localhost:5000"); 
 // 백엔드 주소 (ngrok 사용 시 ngrok 주소로 변경)

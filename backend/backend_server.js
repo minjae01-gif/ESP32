@@ -12,6 +12,8 @@ const { Server } = require('socket.io');
 // 라우트 파일
 const authRoutes = require('./routes/auth');
 const postRoutes = require('./routes/posts');
+const marketplaceRoutes = require('./routes/marketplace');
+const commentRoutes = require('./routes/comments');
 
 // =======================================
 // 🚀 Express 앱 & HTTP 서버 생성
@@ -31,6 +33,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+
 
 // =======================================
 // 📡 최신 센서 데이터 저장
@@ -66,8 +69,16 @@ io.on('connection', (socket) => {
 // =======================================
 // 📌 REST API 라우트
 // =======================================
+
+// 정적 파일 제공 (이미지 접근용)
+app.use('/uploads', express.static('uploads'));
+
+// 라우트
+
 app.use('/api/auth', authRoutes);
 app.use('/api/posts', postRoutes);
+app.use('/api/marketplace', marketplaceRoutes);
+app.use('/api/comments', commentRoutes);
 
 // =======================================
 // 📌 기본 라우트

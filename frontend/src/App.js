@@ -60,36 +60,36 @@ function App() {
               </PrivateRoute>
             }
           />
-
-          <Route
-            path="/marketplace"
+          
+          <Route 
+            path="/marketplace" 
             element={
               <PrivateRoute>
                 <Marketplace />
               </PrivateRoute>
-            }
+            } 
           />
-
-          <Route
-            path="/marketplace/write"
+          
+          <Route 
+            path="/marketplace/write" 
             element={
               <PrivateRoute>
                 <WriteMarketplace />
               </PrivateRoute>
-            }
+            } 
           />
-
-          <Route
-            path="/marketplace/edit/:id"
+          
+          <Route 
+            path="/marketplace/edit/:id" 
             element={
               <PrivateRoute>
                 <EditMarketplace />
               </PrivateRoute>
-            }
+            } 
           />
-
-          <Route
-            path="/marketplace/:id"
+          
+          <Route 
+            path="/marketplace/:id" 
             element={
               <PrivateRoute>
                 <MarketplaceDetail />

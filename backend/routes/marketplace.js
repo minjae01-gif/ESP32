@@ -4,11 +4,7 @@ const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 
-// uploads 폴더의 절대 경로를 미리 정의합니다.
-// (__dirname은 'routes' 폴더, '..'로 'backend' 폴더, 'uploads'로 최종 경로)
-const uploadsDir = path.join(__dirname, '..', 'uploads');
 // JWT 검증 미들웨어
 const verifyToken = (req, res, next) => {
   const token = req.headers['authorization']?.split(' ')[1];
@@ -32,18 +28,12 @@ const verifyToken = (req, res, next) => {
   }
 };
 
-// 이미지 업로드 설정
+// 이미지 업로드 설정 (최대 10개)
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    // 'uploads' 폴더가 있는지 확인
-    if (!fs.existsSync(uploadsDir)) {
-      // 없으면 폴더를 생성합니다. (mkdirSync)
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-    cb(null, 'uploads/');  // uploads 폴더에 저장
+    cb(null, 'uploads/');
   },
   filename: function (req, file, cb) {
-    // 파일명: timestamp-원본파일명
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, uniqueSuffix + path.extname(file.originalname));
   }
@@ -53,24 +43,44 @@ const upload = multer({
   storage: storage,
   limits: { fileSize: 5 * 1024 * 1024 },  // 5MB 제한
   fileFilter: function (req, file, cb) {
-    // 이미지 파일만 허용
-    const filetypes = /jpeg|jpg|png|gif|webp/;
-    const mimetype = filetypes.test(file.mimetype);
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-    
-    if (mimetype && extname) {
+    console.log('파일 업로드 시도:', {
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      fieldname: file.fieldname
+    });
+
+    // mimetype 체크
+    if (file.mimetype.startsWith('image/')) {
       return cb(null, true);
     }
+    
+    // 확장자로 한번 더 체크
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'].includes(ext)) {
+      return cb(null, true);
+    }
+    
+    console.error('이미지가 아닌 파일:', file);
     cb(new Error('이미지 파일만 업로드 가능합니다.'));
   }
 });
 
-// 모든 거래 게시글 조회 (GET)
+// 모든 거래글 조회 (GET) - 첫 번째 이미지만 썸네일로
 router.get('/', async (req, res) => {
   try {
     const [items] = await db.query(
       'SELECT * FROM marketplace ORDER BY created_at DESC'
     );
+
+    // 각 거래글의 첫 번째 이미지 가져오기
+    for (let item of items) {
+      const [images] = await db.query(
+        'SELECT image_url FROM marketplace_images WHERE item_id = ? ORDER BY image_order ASC LIMIT 1',
+        [item.id]
+      );
+      item.image_url = images.length > 0 ? images[0].image_url : null;
+    }
+
     res.json({ success: true, items });
   } catch (error) {
     console.error('거래글 조회 에러:', error);
@@ -81,7 +91,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 특정 거래글 조회 (GET)
+// 특정 거래글 조회 (GET) - 모든 이미지 포함
 router.get('/:id', async (req, res) => {
   try {
     const [items] = await db.query(
@@ -96,7 +106,16 @@ router.get('/:id', async (req, res) => {
       });
     }
 
-    res.json({ success: true, item: items[0] });
+    // 거래글에 연결된 모든 이미지 조회
+    const [images] = await db.query(
+      'SELECT * FROM marketplace_images WHERE item_id = ? ORDER BY image_order ASC',
+      [req.params.id]
+    );
+
+    const item = items[0];
+    item.images = images;
+
+    res.json({ success: true, item });
   } catch (error) {
     console.error('거래글 조회 에러:', error);
     res.status(500).json({ 
@@ -106,10 +125,10 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// 거래글 작성 (POST) - 이미지 업로드 포함
-router.post('/', verifyToken, upload.single('image'), async (req, res) => {
+// 거래글 작성 (POST) - 다중 이미지 업로드 (최대 10개)
+router.post('/', verifyToken, upload.array('images', 10), async (req, res) => {
   try {
-    const { title, content, price } = req.body;
+    const { title, content, price, status } = req.body;
 
     if (!title || !content || !price) {
       return res.status(400).json({ 
@@ -118,18 +137,32 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
       });
     }
 
-    // 이미지 URL (업로드된 경우)
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
-
+    // 거래글 저장
     const [result] = await db.query(
-      'INSERT INTO marketplace (title, content, price, image_url, user_id, username) VALUES (?, ?, ?, ?, ?, ?)',
-      [title, content, price, imageUrl, req.user.userId, req.user.username]
+      'INSERT INTO marketplace (title, content, price, status, user_id, username) VALUES (?, ?, ?, ?, ?, ?)',
+      [title, content, price, status || 'selling', req.user.userId, req.user.username]
     );
+
+    const itemId = result.insertId;
+
+    // 이미지들 저장
+    if (req.files && req.files.length > 0) {
+      const imageValues = req.files.map((file, index) => [
+        itemId,
+        `/uploads/${file.filename}`,
+        index
+      ]);
+
+      await db.query(
+        'INSERT INTO marketplace_images (item_id, image_url, image_order) VALUES ?',
+        [imageValues]
+      );
+    }
 
     res.status(201).json({ 
       success: true, 
       message: '거래글이 작성되었습니다.',
-      itemId: result.insertId 
+      itemId: itemId 
     });
 
   } catch (error) {
@@ -142,7 +175,7 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
 });
 
 // 거래글 수정 (PUT) - 작성자만 가능
-router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
+router.put('/:id', verifyToken, upload.array('images', 10), async (req, res) => {
   try {
     const { title, content, price, status } = req.body;
     const itemId = req.params.id;
@@ -167,14 +200,29 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
       });
     }
 
-    // 이미지 업데이트 (새 이미지가 있는 경우)
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : items[0].image_url;
-
     // 거래글 수정
     await db.query(
-      'UPDATE marketplace SET title = ?, content = ?, price = ?, status = ?, image_url = ? WHERE id = ?',
-      [title, content, price, status || 'selling', imageUrl, itemId]
+      'UPDATE marketplace SET title = ?, content = ?, price = ?, status = ? WHERE id = ?',
+      [title, content, price, status, itemId]
     );
+
+    // 새 이미지가 있으면 기존 이미지 삭제 후 추가
+    if (req.files && req.files.length > 0) {
+      // 기존 이미지 삭제
+      await db.query('DELETE FROM marketplace_images WHERE item_id = ?', [itemId]);
+
+      // 새 이미지 저장
+      const imageValues = req.files.map((file, index) => [
+        itemId,
+        `/uploads/${file.filename}`,
+        index
+      ]);
+
+      await db.query(
+        'INSERT INTO marketplace_images (item_id, image_url, image_order) VALUES ?',
+        [imageValues]
+      );
+    }
 
     res.json({ 
       success: true, 
@@ -190,7 +238,7 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
   }
 });
 
-// 거래글 삭제 (DELETE) - 작성자만 가능
+// 거래글 삭제 (DELETE) - 작성자만 가능 (이미지도 함께 삭제됨)
 router.delete('/:id', verifyToken, async (req, res) => {
   try {
     const itemId = req.params.id;
@@ -215,7 +263,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
       });
     }
 
-    // 거래글 삭제
+    // 거래글 삭제 (CASCADE로 이미지도 함께 삭제됨)
     await db.query('DELETE FROM marketplace WHERE id = ?', [itemId]);
 
     res.json({ 

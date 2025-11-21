@@ -1,496 +1,331 @@
 import React, { useState, useEffect } from 'react';
+import { Input, Button, List, Avatar, Space, Typography, message, Popconfirm, Tag } from 'antd';
+import { UserOutlined, DeleteOutlined, SendOutlined, CommentOutlined } from '@ant-design/icons';
 import { commentAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
+const { TextArea } = Input;
+const { Text } = Typography;
+
 function Comments({ type, id }) {
-  // type: 'post' 또는 'item'
-  // id: post_id 또는 item_id
-  
-  const { user } = useAuth();
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
-  const [replyTo, setReplyTo] = useState(null);
+  const [replyTo, setReplyTo] = useState(null);  // 답글 대상
   const [replyContent, setReplyContent] = useState('');
-  const [editingId, setEditingId] = useState(null);
-  const [editContent, setEditContent] = useState('');
   const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchComments();
-  }, [type, id]);
+  }, [id]);
 
   const fetchComments = async () => {
     try {
-      const response = type === 'post' 
-        ? await commentAPI.getPostComments(id)
-        : await commentAPI.getItemComments(id);
-      setComments(response.data.comments);
+      const response = await commentAPI.getComments(type, id);
+      setComments(response.data.comments || []);
     } catch (error) {
-      console.error('댓글 불러오기 실패:', error);
+      console.error('댓글 조회 실패:', error);
     }
   };
 
-  const handleSubmitComment = async (e) => {
-    e.preventDefault();
-    if (!newComment.trim()) return;
+  const handleSubmit = async () => {
+    if (!newComment.trim()) {
+      message.error('댓글 내용을 입력해주세요.');
+      return;
+    }
+
+    if (!user) {
+      message.error('로그인이 필요합니다.');
+      return;
+    }
 
     setLoading(true);
     try {
-      const data = {
-        content: newComment,
-        [type === 'post' ? 'post_id' : 'item_id']: id,
-      };
-      
-      await commentAPI.createComment(data);
+      await commentAPI.createComment(type, id, { content: newComment, parent_id: null });
+      message.success('댓글이 작성되었습니다.');
       setNewComment('');
       fetchComments();
     } catch (error) {
-      alert('댓글 작성에 실패했습니다.');
+      message.error('댓글 작성에 실패했습니다.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSubmitReply = async (e, parentId) => {
-    e.preventDefault();
-    if (!replyContent.trim()) return;
+  const handleReplySubmit = async (parentId) => {
+    if (!replyContent.trim()) {
+      message.error('답글 내용을 입력해주세요.');
+      return;
+    }
 
     setLoading(true);
     try {
-      const data = {
-        content: replyContent,
-        [type === 'post' ? 'post_id' : 'item_id']: id,
-        parent_id: parentId,
-      };
-      
-      await commentAPI.createComment(data);
+      await commentAPI.createComment(type, id, { 
+        content: replyContent, 
+        parent_id: parentId 
+      });
+      message.success('답글이 작성되었습니다.');
       setReplyContent('');
       setReplyTo(null);
       fetchComments();
     } catch (error) {
-      alert('대댓글 작성에 실패했습니다.');
+      message.error('답글 작성에 실패했습니다.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEdit = async (commentId) => {
-    if (!editContent.trim()) return;
-
-    try {
-      await commentAPI.updateComment(commentId, editContent);
-      setEditingId(null);
-      setEditContent('');
-      fetchComments();
-    } catch (error) {
-      alert('댓글 수정에 실패했습니다.');
-    }
-  };
-
   const handleDelete = async (commentId) => {
-    if (!window.confirm('댓글을 삭제하시겠습니까?')) return;
-
     try {
-      await commentAPI.deleteComment(commentId);
+      await commentAPI.deleteComment(type, id, commentId);
+      message.success('댓글이 삭제되었습니다.');
       fetchComments();
     } catch (error) {
-      alert('댓글 삭제에 실패했습니다.');
+      message.error('댓글 삭제에 실패했습니다.');
     }
   };
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffMinutes = Math.floor(diffTime / (1000 * 60));
+    const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffMinutes < 1) return '방금 전';
+    if (diffMinutes < 60) return `${diffMinutes}분 전`;
+    if (diffHours < 24) return `${diffHours}시간 전`;
+    if (diffDays < 7) return `${diffDays}일 전`;
+    return date.toLocaleDateString('ko-KR');
+  };
+
+  // 댓글 개수 계산 (대댓글 포함)
+  const countTotalComments = (commentList) => {
+    let count = commentList.length;
+    commentList.forEach(comment => {
+      if (comment.replies && comment.replies.length > 0) {
+        count += comment.replies.length;
+      }
     });
+    return count;
   };
 
-  // 부모 댓글만 필터링
-  const parentComments = comments.filter(c => !c.parent_id);
-  
-  // 대댓글 찾기
-  const getReplies = (parentId) => {
-    return comments.filter(c => c.parent_id === parentId);
-  };
-
-  const isAuthor = (comment) => {
-    return user && (
-      comment.user_id === user.userId || 
+  // 댓글 렌더링 (재귀적으로 대댓글 포함)
+  const renderComment = (comment, isReply = false) => {
+    const isAuthor = user && (
+      comment.user_id === user.userId ||
       comment.user_id === user.id ||
       comment.username === user.username
+    );
+
+    return (
+      <div key={comment.id}>
+        <List.Item
+          style={{
+            background: isReply ? '#f9f9f9' : '#f0f0f0',
+            padding: '16px',
+            marginBottom: '4px',
+            marginLeft: isReply ? '40px' : '0',
+            borderRadius: '8px',
+            border: '1px solid #d9d9d9',
+            borderLeft: isReply ? '3px solid #52c41a' : '1px solid #d9d9d9',
+          }}
+        >
+          <List.Item.Meta
+            avatar={
+              <Avatar 
+                icon={<UserOutlined />} 
+                style={{ backgroundColor: isReply ? '#1890ff' : '#52c41a' }}
+                size={isReply ? 'default' : 'large'}
+              />
+            }
+            title={
+              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                <Space>
+                  <Text strong style={{ fontSize: isReply ? '14px' : '15px' }}>
+                    {comment.username}
+                  </Text>
+                  <Text type="secondary" style={{ fontSize: '12px' }}>
+                    {formatDate(comment.created_at)}
+                  </Text>
+                  {isAuthor && (
+                    <Tag color="green">내 댓글</Tag>
+                  )}
+                  {isReply && (
+                    <Tag color="blue">답글</Tag>
+                  )}
+                </Space>
+                <Space>
+                  {!isReply && user && (
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<CommentOutlined />}
+                      onClick={() => setReplyTo(comment.id)}
+                    >
+                      답글
+                    </Button>
+                  )}
+                  {isAuthor && (
+                    <Popconfirm
+                      title="댓글을 삭제하시겠습니까?"
+                      description={!isReply && comment.replies?.length > 0 ? "답글도 함께 삭제됩니다." : undefined}
+                      onConfirm={() => handleDelete(comment.id)}
+                      okText="삭제"
+                      cancelText="취소"
+                    >
+                      <Button
+                        type="text"
+                        danger
+                        size="small"
+                        icon={<DeleteOutlined />}
+                      />
+                    </Popconfirm>
+                  )}
+                </Space>
+              </Space>
+            }
+            description={
+              <Text style={{ 
+                fontSize: isReply ? '14px' : '15px', 
+                lineHeight: '1.6',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                color: '#262626',
+                display: 'block',
+                marginTop: '8px'
+              }}>
+                {comment.content}
+              </Text>
+            }
+          />
+        </List.Item>
+
+        {/* 답글 작성 폼 */}
+        {replyTo === comment.id && (
+          <div style={{ 
+            marginLeft: '40px', 
+            marginTop: '8px', 
+            marginBottom: '12px',
+            padding: '16px',
+            background: '#f0f7ff',
+            borderRadius: '8px',
+            border: '1px solid #91d5ff',
+          }}>
+            <Text strong style={{ display: 'block', marginBottom: '8px' }}>
+              💬 {comment.username}님에게 답글 작성
+            </Text>
+            <TextArea
+              value={replyContent}
+              onChange={(e) => setReplyContent(e.target.value)}
+              placeholder="답글을 입력하세요..."
+              autoSize={{ minRows: 2, maxRows: 4 }}
+              style={{ marginBottom: '8px' }}
+            />
+            <Space>
+              <Button
+                type="primary"
+                size="small"
+                icon={<SendOutlined />}
+                onClick={() => handleReplySubmit(comment.id)}
+                loading={loading}
+              >
+                답글 작성
+              </Button>
+              <Button
+                size="small"
+                onClick={() => {
+                  setReplyTo(null);
+                  setReplyContent('');
+                }}
+              >
+                취소
+              </Button>
+            </Space>
+          </div>
+        )}
+
+        {/* 대댓글 렌더링 */}
+        {comment.replies && comment.replies.length > 0 && (
+          <div>
+            {comment.replies.map(reply => renderComment(reply, true))}
+          </div>
+        )}
+      </div>
     );
   };
 
   return (
     <div style={styles.container}>
-      <h3 style={styles.title}>💬 댓글 {comments.length}개</h3>
-
-      {/* 댓글 작성 */}
-      <form onSubmit={handleSubmitComment} style={styles.form}>
-        <textarea
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          placeholder="댓글을 작성하세요..."
-          style={styles.textarea}
-          rows="3"
-        />
-        <button 
-          type="submit" 
-          disabled={loading}
-          style={styles.submitBtn}
-        >
-          {loading ? '작성 중...' : '댓글 작성'}
-        </button>
-      </form>
+      <Text strong style={{ fontSize: '18px', marginBottom: '16px', display: 'block' }}>
+        💬 댓글 {countTotalComments(comments)}개
+      </Text>
 
       {/* 댓글 목록 */}
-      <div style={styles.commentList}>
-        {parentComments.map((comment) => (
-          <div key={comment.id} style={styles.commentWrapper}>
-            {/* 부모 댓글 */}
-            <div style={styles.comment}>
-              <div style={styles.commentHeader}>
-                <span style={styles.author}>{comment.username}</span>
-                <span style={styles.date}>{formatDate(comment.created_at)}</span>
-              </div>
+      <List
+        dataSource={comments}
+        locale={{ emptyText: '첫 댓글을 작성해보세요!' }}
+        renderItem={(comment) => renderComment(comment, false)}
+      />
 
-              {editingId === comment.id ? (
-                // 수정 모드
-                <div style={styles.editForm}>
-                  <textarea
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    style={styles.textarea}
-                    rows="2"
-                  />
-                  <div style={styles.editButtons}>
-                    <button 
-                      onClick={() => handleEdit(comment.id)}
-                      style={styles.saveBtn}
-                    >
-                      저장
-                    </button>
-                    <button 
-                      onClick={() => {
-                        setEditingId(null);
-                        setEditContent('');
-                      }}
-                      style={styles.cancelBtn}
-                    >
-                      취소
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                // 보기 모드
-                <>
-                  <p style={styles.content}>{comment.content}</p>
-                  <div style={styles.actions}>
-                    <button 
-                      onClick={() => setReplyTo(comment.id)}
-                      style={styles.actionBtn}
-                    >
-                      답글
-                    </button>
-                    {isAuthor(comment) && (
-                      <>
-                        <button 
-                          onClick={() => {
-                            setEditingId(comment.id);
-                            setEditContent(comment.content);
-                          }}
-                          style={styles.actionBtn}
-                        >
-                          수정
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(comment.id)}
-                          style={styles.deleteActionBtn}
-                        >
-                          삭제
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
+      {/* 댓글 작성 */}
+      {user && (
+        <div style={styles.writeSection}>
+          <TextArea
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            placeholder="댓글을 입력하세요..."
+            autoSize={{ minRows: 2, maxRows: 6 }}
+            style={styles.textarea}
+          />
+          <Button
+            type="primary"
+            icon={<SendOutlined />}
+            onClick={handleSubmit}
+            loading={loading}
+            style={styles.submitButton}
+            size="large"
+          >
+            댓글 작성
+          </Button>
+        </div>
+      )}
 
-            {/* 대댓글 작성 폼 */}
-            {replyTo === comment.id && (
-              <div style={styles.replyForm}>
-                <form onSubmit={(e) => handleSubmitReply(e, comment.id)}>
-                  <div style={styles.replyInputWrapper}>
-                    <span style={styles.replyLabel}>
-                      ↳ {comment.username}님에게 답글
-                    </span>
-                    <textarea
-                      value={replyContent}
-                      onChange={(e) => setReplyContent(e.target.value)}
-                      placeholder="답글을 작성하세요..."
-                      style={styles.textarea}
-                      rows="2"
-                    />
-                  </div>
-                  <div style={styles.replyButtons}>
-                    <button 
-                      type="submit"
-                      disabled={loading}
-                      style={styles.submitBtn}
-                    >
-                      답글 작성
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={() => {
-                        setReplyTo(null);
-                        setReplyContent('');
-                      }}
-                      style={styles.cancelBtn}
-                    >
-                      취소
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-
-            {/* 대댓글 목록 */}
-            {getReplies(comment.id).map((reply) => (
-              <div key={reply.id} style={styles.reply}>
-                <div style={styles.replyIndicator}>↳</div>
-                <div style={styles.replyContent}>
-                  <div style={styles.commentHeader}>
-                    <span style={styles.author}>{reply.username}</span>
-                    <span style={styles.replyToLabel}>
-                      → {comment.username}
-                    </span>
-                    <span style={styles.date}>{formatDate(reply.created_at)}</span>
-                  </div>
-
-                  {editingId === reply.id ? (
-                    // 수정 모드
-                    <div style={styles.editForm}>
-                      <textarea
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                        style={styles.textarea}
-                        rows="2"
-                      />
-                      <div style={styles.editButtons}>
-                        <button 
-                          onClick={() => handleEdit(reply.id)}
-                          style={styles.saveBtn}
-                        >
-                          저장
-                        </button>
-                        <button 
-                          onClick={() => {
-                            setEditingId(null);
-                            setEditContent('');
-                          }}
-                          style={styles.cancelBtn}
-                        >
-                          취소
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    // 보기 모드
-                    <>
-                      <p style={styles.content}>{reply.content}</p>
-                      {isAuthor(reply) && (
-                        <div style={styles.actions}>
-                          <button 
-                            onClick={() => {
-                              setEditingId(reply.id);
-                              setEditContent(reply.content);
-                            }}
-                            style={styles.actionBtn}
-                          >
-                            수정
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(reply.id)}
-                            style={styles.deleteActionBtn}
-                          >
-                            삭제
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
+      {!user && (
+        <div style={styles.loginPrompt}>
+          <Text type="secondary">댓글을 작성하려면 로그인이 필요합니다.</Text>
+        </div>
+      )}
     </div>
   );
 }
 
 const styles = {
   container: {
-    marginTop: '40px',
-    borderTop: '2px solid #f0f0f0',
-    paddingTop: '30px',
+    padding: '0',
   },
-  title: {
-    marginBottom: '20px',
-    color: '#333',
-  },
-  form: {
-    marginBottom: '30px',
+  writeSection: {
+    marginTop: '24px',
+    padding: '20px',
+    background: '#fafafa',
+    borderRadius: '12px',
+    border: '1px solid #d9d9d9',
   },
   textarea: {
-    width: '100%',
-    padding: '12px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    fontSize: '14px',
-    resize: 'vertical',
-    fontFamily: 'inherit',
-    boxSizing: 'border-box',
+    marginBottom: '12px',
+    fontSize: '15px',
   },
-  submitBtn: {
-    marginTop: '10px',
-    padding: '10px 20px',
-    backgroundColor: '#4CAF50',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '14px',
+  submitButton: {
+    background: '#52c41a',
+    borderColor: '#52c41a',
   },
-  commentList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '20px',
-  },
-  commentWrapper: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '15px',
-  },
-  comment: {
-    padding: '15px',
-    backgroundColor: '#f9f9f9',
+  loginPrompt: {
+    textAlign: 'center',
+    padding: '24px',
+    background: '#fafafa',
     borderRadius: '8px',
-  },
-  commentHeader: {
-    display: 'flex',
-    gap: '15px',
-    alignItems: 'center',
-    marginBottom: '10px',
-  },
-  author: {
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  date: {
-    fontSize: '12px',
-    color: '#999',
-  },
-  replyToLabel: {
-    fontSize: '12px',
-    color: '#4CAF50',
-    fontWeight: '500',
-  },
-  content: {
-    margin: '0 0 10px 0',
-    color: '#333',
-    lineHeight: '1.6',
-  },
-  actions: {
-    display: 'flex',
-    gap: '10px',
-  },
-  actionBtn: {
-    padding: '5px 10px',
-    backgroundColor: 'transparent',
-    color: '#2196F3',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '12px',
-  },
-  deleteActionBtn: {
-    padding: '5px 10px',
-    backgroundColor: 'transparent',
-    color: '#f44336',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '12px',
-  },
-  editForm: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-  },
-  editButtons: {
-    display: 'flex',
-    gap: '10px',
-  },
-  saveBtn: {
-    padding: '8px 16px',
-    backgroundColor: '#4CAF50',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '14px',
-  },
-  cancelBtn: {
-    padding: '8px 16px',
-    backgroundColor: '#757575',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '14px',
-  },
-  // 대댓글 스타일
-  reply: {
-    display: 'flex',
-    gap: '10px',
-    marginLeft: '40px',
-    padding: '15px',
-    backgroundColor: '#fff',
-    border: '1px solid #e0e0e0',
-    borderRadius: '8px',
-  },
-  replyIndicator: {
-    color: '#4CAF50',
-    fontSize: '20px',
-    fontWeight: 'bold',
-  },
-  replyContent: {
-    flex: 1,
-  },
-  replyForm: {
-    marginLeft: '40px',
-    padding: '15px',
-    backgroundColor: '#f0f7ff',
-    borderRadius: '8px',
-    border: '1px solid #2196F3',
-  },
-  replyInputWrapper: {
-    marginBottom: '10px',
-  },
-  replyLabel: {
-    display: 'block',
-    marginBottom: '8px',
-    color: '#2196F3',
-    fontWeight: '500',
-    fontSize: '14px',
-  },
-  replyButtons: {
-    display: 'flex',
-    gap: '10px',
+    marginTop: '16px',
   },
 };
 

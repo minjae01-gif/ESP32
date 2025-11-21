@@ -1,11 +1,11 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
-import PrivateRoute from './components/PrivateRoute';
 
+// 페이지 import
 import Login from './pages/Login';
-import Signup from './pages/Signup';
-import Home from './pages/Home';
+import Register from './pages/Register';
+import DashBoard from './pages/DashBoard';
 import Community from './pages/Community';
 import WritePost from './pages/WritePost';
 import PostDetail from './pages/PostDetail';
@@ -14,100 +14,32 @@ import WriteMarketplace from './pages/WriteMarketplace';
 import EditMarketplace from './pages/EditMarketplace';
 import MarketplaceDetail from './pages/MarketplaceDetail';
 
-import Dashboard from './pages/DashBoard';   // 🔥 추가!!
-
 function App() {
   return (
     <AuthProvider>
       <Router>
         <Routes>
-
+          {/* 기본 경로 */}
+          <Route path="/" element={<Navigate to="/dashboard" />} />
+          
+          {/* 인증 */}
           <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-
-          <Route
-            path="/"
-            element={
-              <PrivateRoute>
-                <Home />
-              </PrivateRoute>
-            }
-          />
-
-          <Route
-            path="/community"
-            element={
-              <PrivateRoute>
-                <Community />
-              </PrivateRoute>
-            }
-          />
-
-          <Route
-            path="/community/write"
-            element={
-              <PrivateRoute>
-                <WritePost />
-              </PrivateRoute>
-            }
-          />
-
-          <Route
-            path="/community/:id"
-            element={
-              <PrivateRoute>
-                <PostDetail />
-              </PrivateRoute>
-            }
-          />
+          <Route path="/register" element={<Register />} />
+          <Route path="/signup" element={<Register />} />
           
-          <Route 
-            path="/marketplace" 
-            element={
-              <PrivateRoute>
-                <Marketplace />
-              </PrivateRoute>
-            } 
-          />
+          {/* 대시보드 */}
+          <Route path="/dashboard" element={<DashBoard />} />
           
-          <Route 
-            path="/marketplace/write" 
-            element={
-              <PrivateRoute>
-                <WriteMarketplace />
-              </PrivateRoute>
-            } 
-          />
+          {/* 커뮤니티 */}
+          <Route path="/community" element={<Community />} />
+          <Route path="/community/write" element={<WritePost />} />
+          <Route path="/community/:id" element={<PostDetail />} />
           
-          <Route 
-            path="/marketplace/edit/:id" 
-            element={
-              <PrivateRoute>
-                <EditMarketplace />
-              </PrivateRoute>
-            } 
-          />
-          
-          <Route 
-            path="/marketplace/:id" 
-            element={
-              <PrivateRoute>
-                <MarketplaceDetail />
-              </PrivateRoute>
-            }
-          />
-
-          {/* 🔥 Dashboard 라우트 추가 */}
-          <Route
-            path="/dashboard"
-            element={
-              <PrivateRoute>
-                <Dashboard />
-              </PrivateRoute>
-            }
-          />
-
-          <Route path="*" element={<Navigate to="/" />} />
+          {/* 거래 */}
+          <Route path="/marketplace" element={<Marketplace />} />
+          <Route path="/marketplace/write" element={<WriteMarketplace />} />
+          <Route path="/marketplace/edit/:id" element={<EditMarketplace />} />
+          <Route path="/marketplace/:id" element={<MarketplaceDetail />} />
         </Routes>
       </Router>
     </AuthProvider>

@@ -69,7 +69,7 @@ function Login() {
         </form>
 
         <div style={styles.footer}>
-          <p>계정이 없으신가요? <Link to="/signup" style={styles.link}>회원가입</Link></p>
+          <p>계정이 없으신가요? <Link to="/register" style={styles.link}>회원가입</Link></p>
         </div>
       </div>
     </div>

@@ -1,68 +1,152 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { 
+  Card, Input, Button, Space, Upload, message, 
+  Typography, Tag, Divider 
+} from 'antd';
+import {
+  PlusOutlined,
+  DeleteOutlined,
+  PictureOutlined,
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+} from '@ant-design/icons';
 import { postAPI } from '../services/api';
 import Layout from '../components/Layout';
 
+const { TextArea } = Input;
+const { Title, Text } = Typography;
+
 function WritePost() {
   const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [image, setImage] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState('');
-  const [error, setError] = useState('');
+  const [contentBlocks, setContentBlocks] = useState([
+    { type: 'text', content: '', id: Date.now() }
+  ]);
+  const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      // 파일 크기 체크 (10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        setError('이미지 크기는 10MB 이하여야 합니다.');
-        return;
-      }
-
-      // 이미지 파일 체크
-      if (!file.type.startsWith('image/')) {
-        setError('이미지 파일만 업로드 가능합니다.');
-        return;
-      }
-
-      setImage(file);
-      setError('');
-
-      // 미리보기 생성
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewUrl(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
+  // 텍스트 블록 추가
+  const addTextBlock = (afterIndex) => {
+    const newBlock = { type: 'text', content: '', id: Date.now() };
+    const newBlocks = [...contentBlocks];
+    newBlocks.splice(afterIndex + 1, 0, newBlock);
+    setContentBlocks(newBlocks);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // 이미지 블록 추가
+  const addImageBlock = (afterIndex) => {
+    if (images.length >= 5) {
+      message.error('이미지는 최대 5개까지만 업로드 가능합니다.');
+      return;
+    }
+    const newBlock = { type: 'image', imageIndex: images.length, id: Date.now() };
+    const newBlocks = [...contentBlocks];
+    newBlocks.splice(afterIndex + 1, 0, newBlock);
+    setContentBlocks(newBlocks);
+  };
+
+  // 블록 삭제
+  const removeBlock = (index) => {
+    if (contentBlocks.length === 1) {
+      message.warning('최소 1개의 블록은 필요합니다.');
+      return;
+    }
+    const newBlocks = contentBlocks.filter((_, i) => i !== index);
+    setContentBlocks(newBlocks);
+  };
+
+  // 블록 위로 이동
+  const moveBlockUp = (index) => {
+    if (index === 0) return;
+    const newBlocks = [...contentBlocks];
+    [newBlocks[index - 1], newBlocks[index]] = [newBlocks[index], newBlocks[index - 1]];
+    setContentBlocks(newBlocks);
+  };
+
+  // 블록 아래로 이동
+  const moveBlockDown = (index) => {
+    if (index === contentBlocks.length - 1) return;
+    const newBlocks = [...contentBlocks];
+    [newBlocks[index], newBlocks[index + 1]] = [newBlocks[index + 1], newBlocks[index]];
+    setContentBlocks(newBlocks);
+  };
+
+  // 텍스트 블록 내용 변경
+  const updateTextBlock = (index, value) => {
+    const newBlocks = [...contentBlocks];
+    newBlocks[index].content = value;
+    setContentBlocks(newBlocks);
+  };
+
+  // 이미지 업로드
+  const handleImageUpload = (file, imageIndex) => {
+    if (file.size > 5 * 1024 * 1024) {
+      message.error('이미지 크기는 5MB 이하여야 합니다.');
+      return false;
+    }
+
+    const newImages = [...images];
+    newImages[imageIndex] = file;
+    setImages(newImages);
+    message.success('이미지가 추가되었습니다.');
+    return false; // 자동 업로드 방지
+  };
+
+  // 이미지 삭제
+  const removeImage = (imageIndex) => {
+    const newImages = [...images];
+    newImages[imageIndex] = null;
+    setImages(newImages);
     
-    if (!title.trim() || !content.trim()) {
-      setError('제목과 내용을 모두 입력해주세요.');
+    // 해당 이미지 블록도 삭제
+    const newBlocks = contentBlocks.filter(
+      block => !(block.type === 'image' && block.imageIndex === imageIndex)
+    );
+    setContentBlocks(newBlocks);
+  };
+
+  // 제출
+  const handleSubmit = async () => {
+    if (!title.trim()) {
+      message.error('제목을 입력해주세요.');
+      return;
+    }
+
+    // 최종 content 조합
+    let finalContent = '';
+    contentBlocks.forEach((block) => {
+      if (block.type === 'text') {
+        finalContent += block.content + '\n';
+      } else if (block.type === 'image') {
+        finalContent += `[IMAGE:${block.imageIndex}]\n`;
+      }
+    });
+
+    if (!finalContent.trim()) {
+      message.error('내용을 입력해주세요.');
       return;
     }
 
     setLoading(true);
-    setError('');
 
     try {
-      // FormData 생성 (이미지 업로드용)
       const formData = new FormData();
       formData.append('title', title);
-      formData.append('content', content);
-      if (image) {
-        formData.append('image', image);
-      }
+      formData.append('content', finalContent.trim());
+      
+      // 실제 이미지 파일들만 추가
+      images.forEach((image) => {
+        if (image) {
+          formData.append('images', image);
+        }
+      });
 
       await postAPI.createPost(formData);
+      message.success('게시글이 작성되었습니다.');
       navigate('/community');
     } catch (error) {
-      setError(error.response?.data?.message || '게시글 작성에 실패했습니다.');
+      message.error('게시글 작성에 실패했습니다.');
     } finally {
       setLoading(false);
     }
@@ -71,74 +155,153 @@ function WritePost() {
   return (
     <Layout>
       <div style={styles.container}>
-        <h2 style={styles.pageTitle}>✏️ 게시글 작성</h2>
-        
-        {error && <div style={styles.error}>{error}</div>}
+        <Card>
+          <Title level={2}>✏️ 커뮤니티 글쓰기</Title>
+          <Text type="secondary">
+            텍스트와 이미지를 자유롭게 배치하여 작성하세요. (이미지 최대 5개)
+          </Text>
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          
+          <Divider />
+
           {/* 제목 */}
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>제목</label>
-            <input
-              type="text"
+          <div style={styles.titleSection}>
+            <Text strong>제목</Text>
+            <Input
+              size="large"
+              placeholder="제목을 입력하세요"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="제목을 입력하세요"
-              style={styles.input}
+              style={{ marginTop: '8px' }}
             />
           </div>
 
-          {/* 내용 */}
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>내용</label>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="내용을 입력하세요"
-              style={styles.textarea}
-              rows="15"
-            />
+          <Divider />
+
+          {/* 내용 블록들 */}
+          <div style={styles.contentSection}>
+            <Text strong>내용</Text>
+            
+            <Space direction="vertical" size="large" style={{ width: '100%', marginTop: '16px' }}>
+              {contentBlocks.map((block, index) => (
+                <Card
+                  key={block.id}
+                  size="small"
+                  style={styles.blockCard}
+                  extra={
+                    <Space>
+                      <Tag color="blue">블록 {index + 1}</Tag>
+                      {index > 0 && (
+                        <Button
+                          icon={<ArrowUpOutlined />}
+                          size="small"
+                          onClick={() => moveBlockUp(index)}
+                        />
+                      )}
+                      {index < contentBlocks.length - 1 && (
+                        <Button
+                          icon={<ArrowDownOutlined />}
+                          size="small"
+                          onClick={() => moveBlockDown(index)}
+                        />
+                      )}
+                      <Button
+                        icon={<DeleteOutlined />}
+                        size="small"
+                        danger
+                        onClick={() => removeBlock(index)}
+                      />
+                    </Space>
+                  }
+                >
+                  {block.type === 'text' ? (
+                    // 텍스트 블록
+                    <>
+                      <TextArea
+                        placeholder="내용을 입력하세요..."
+                        value={block.content}
+                        onChange={(e) => updateTextBlock(index, e.target.value)}
+                        autoSize={{ minRows: 3, maxRows: 10 }}
+                      />
+                      <Space style={{ marginTop: '12px' }}>
+                        <Button
+                          icon={<PlusOutlined />}
+                          size="small"
+                          onClick={() => addTextBlock(index)}
+                        >
+                          텍스트 추가
+                        </Button>
+                        <Button
+                          icon={<PictureOutlined />}
+                          size="small"
+                          type="primary"
+                          onClick={() => addImageBlock(index)}
+                          disabled={images.length >= 5}
+                        >
+                          이미지 추가
+                        </Button>
+                      </Space>
+                    </>
+                  ) : (
+                    // 이미지 블록
+                    <div style={styles.imageBlock}>
+                      <Tag color="green" style={{ marginBottom: '12px' }}>
+                        이미지 {block.imageIndex + 1}
+                      </Tag>
+                      {images[block.imageIndex] ? (
+                        <div style={styles.imagePreview}>
+                          <img
+                            src={URL.createObjectURL(images[block.imageIndex])}
+                            alt={`preview-${block.imageIndex}`}
+                            style={styles.previewImg}
+                          />
+                          <Button
+                            icon={<DeleteOutlined />}
+                            danger
+                            onClick={() => removeImage(block.imageIndex)}
+                            style={{ marginTop: '8px' }}
+                          >
+                            이미지 삭제
+                          </Button>
+                        </div>
+                      ) : (
+                        <Upload
+                          beforeUpload={(file) => handleImageUpload(file, block.imageIndex)}
+                          showUploadList={false}
+                          accept="image/*"
+                        >
+                          <Button icon={<PlusOutlined />} block>
+                            이미지 선택 (최대 5MB)
+                          </Button>
+                        </Upload>
+                      )}
+                    </div>
+                  )}
+                </Card>
+              ))}
+            </Space>
           </div>
 
-          {/* 이미지 업로드 (선택사항) */}
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>이미지 (선택사항)</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-              style={styles.fileInput}
-            />
-            {previewUrl && (
-              <div style={styles.previewContainer}>
-                <img 
-                  src={previewUrl} 
-                  alt="미리보기" 
-                  style={styles.preview}
-                />
-              </div>
-            )}
-            <p style={styles.hint}>* 최대 10MB, 이미지 파일만 가능</p>
-          </div>
+          <Divider />
 
-          <div style={styles.buttonGroup}>
-            <button 
-              type="button" 
+          {/* 제출 버튼 */}
+          <Space>
+            <Button
+              size="large"
               onClick={() => navigate('/community')}
-              style={styles.cancelBtn}
             >
               취소
-            </button>
-            <button 
-              type="submit" 
-              disabled={loading}
-              style={styles.submitBtn}
+            </Button>
+            <Button
+              type="primary"
+              size="large"
+              onClick={handleSubmit}
+              loading={loading}
+              style={{ background: '#52c41a', borderColor: '#52c41a' }}
             >
-              {loading ? '작성 중...' : '작성 완료'}
-            </button>
-          </div>
-        </form>
+              작성 완료
+            </Button>
+          </Space>
+        </Card>
       </div>
     </Layout>
   );
@@ -146,101 +309,31 @@ function WritePost() {
 
 const styles = {
   container: {
-    maxWidth: '800px',
+    maxWidth: '900px',
     margin: '0 auto',
-    backgroundColor: 'white',
-    padding: '40px',
+    padding: '24px',
+  },
+  titleSection: {
+    marginBottom: '24px',
+  },
+  contentSection: {
+    marginBottom: '24px',
+  },
+  blockCard: {
     borderRadius: '8px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    border: '2px solid #f0f0f0',
   },
-  pageTitle: {
-    marginTop: 0,
-    marginBottom: '30px',
-    color: '#333',
+  imageBlock: {
+    padding: '16px',
   },
-  error: {
-    backgroundColor: '#ffebee',
-    color: '#c62828',
-    padding: '12px',
-    borderRadius: '4px',
-    marginBottom: '20px',
+  imagePreview: {
+    textAlign: 'center',
   },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '25px',
-  },
-  inputGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  label: {
+  previewImg: {
+    maxWidth: '100%',
+    maxHeight: '300px',
+    borderRadius: '8px',
     marginBottom: '8px',
-    fontSize: '16px',
-    fontWeight: '500',
-    color: '#333',
-  },
-  input: {
-    padding: '12px',
-    fontSize: '16px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-  },
-  textarea: {
-    padding: '12px',
-    fontSize: '16px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    resize: 'vertical',
-    fontFamily: 'inherit',
-  },
-  fileInput: {
-    padding: '10px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
-  hint: {
-    margin: '5px 0 0 0',
-    fontSize: '14px',
-    color: '#999',
-  },
-  previewContainer: {
-    marginTop: '15px',
-    width: '100%',
-    maxWidth: '500px',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    overflow: 'hidden',
-  },
-  preview: {
-    width: '100%',
-    height: 'auto',
-    display: 'block',
-  },
-  buttonGroup: {
-    display: 'flex',
-    gap: '10px',
-    justifyContent: 'flex-end',
-    marginTop: '10px',
-  },
-  cancelBtn: {
-    padding: '12px 24px',
-    backgroundColor: '#757575',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    fontSize: '16px',
-    cursor: 'pointer',
-  },
-  submitBtn: {
-    padding: '12px 24px',
-    backgroundColor: '#4CAF50',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    fontSize: '16px',
-    cursor: 'pointer',
   },
 };
 

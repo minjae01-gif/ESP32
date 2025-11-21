@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'http://localhost:5000';
 
 // Axios 인스턴스 생성
 const api = axios.create({
@@ -10,12 +10,12 @@ const api = axios.create({
   },
 });
 
-// 요청 인터셉터 (토큰 자동 추가)
+// 요청 인터셉터 - 토큰 자동 추가
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;
   },
@@ -24,104 +24,62 @@ api.interceptors.request.use(
   }
 );
 
-// 인증 관련 API
+// 인증 API
 export const authAPI = {
-  // 회원가입
-  signup: (userData) => api.post('/auth/signup', userData),
-  
-  // 로그인
-  login: (credentials) => api.post('/auth/login', credentials),
-  
-  // 토큰 검증
-  verify: () => api.get('/auth/verify'),
+  register: (userData) => api.post('/api/auth/register', userData),
+  login: (credentials) => api.post('/api/auth/login', credentials),
+  getProfile: () => api.get('/api/auth/profile'),
 };
 
-// 게시글 관련 API
+// 게시글 API
 export const postAPI = {
-  // 모든 게시글 조회
-  getPosts: () => api.get('/posts'),
-  
-  // 특정 게시글 조회
-  getPost: (id) => api.get(`/posts/${id}`),
-  
-  // 게시글 작성 (FormData 지원)
-  createPost: (postData) => {
-    // FormData인지 확인
-    if (postData instanceof FormData) {
-      return api.post('/posts', postData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-    }
-    // 일반 객체인 경우
-    return api.post('/posts', postData);
-  },
-  
-  // 게시글 수정 (FormData 지원)
-  updatePost: (id, postData) => {
-    // FormData인지 확인
-    if (postData instanceof FormData) {
-      return api.put(`/posts/${id}`, postData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-    }
-    // 일반 객체인 경우
-    return api.put(`/posts/${id}`, postData);
-  },
-  
-  // 게시글 삭제
-  deletePost: (id) => api.delete(`/posts/${id}`),
+  getPosts: () => api.get('/api/posts'),
+  getPost: (id) => api.get(`/api/posts/${id}`),
+  createPost: (formData) => api.post('/api/posts', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  updatePost: (id, formData) => api.put(`/api/posts/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  deletePost: (id) => api.delete(`/api/posts/${id}`),
 };
 
-// 거래 게시판 API
+// 거래 API
 export const marketplaceAPI = {
-  // 모든 거래글 조회
-  getItems: () => api.get('/marketplace'),
-  
-  // 특정 거래글 조회
-  getItem: (id) => api.get(`/marketplace/${id}`),
-  
-  // 거래글 작성 (이미지 포함)
-  createItem: (formData) => {
-    return api.post('/marketplace', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-  },
-  
-  // 거래글 수정
-  updateItem: (id, formData) => {
-    return api.put(`/marketplace/${id}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-  },
-  
-  // 거래글 삭제
-  deleteItem: (id) => api.delete(`/marketplace/${id}`),
+  getItems: () => api.get('/api/marketplace'),
+  getItem: (id) => api.get(`/api/marketplace/${id}`),
+  createItem: (formData) => api.post('/api/marketplace', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  updateItem: (id, formData) => api.put(`/api/marketplace/${id}`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  deleteItem: (id) => api.delete(`/api/marketplace/${id}`),
 };
 
 // 댓글 API
 export const commentAPI = {
-  // 특정 게시글의 댓글 조회
-  getPostComments: (postId) => api.get(`/comments/post/${postId}`),
-  
-  // 특정 거래글의 댓글 조회
-  getItemComments: (itemId) => api.get(`/comments/item/${itemId}`),
-  
+  // 댓글 조회
+  getComments: (type, id) => {
+    const endpoint = type === 'post' ? 'posts' : 'marketplace';
+    return api.get(`/api/${endpoint}/${id}/comments`);
+  },
   // 댓글 작성
-  createComment: (commentData) => api.post('/comments', commentData),
-  
-  // 댓글 수정
-  updateComment: (id, content) => api.put(`/comments/${id}`, { content }),
-  
+  createComment: (type, id, commentData) => {
+    const endpoint = type === 'post' ? 'posts' : 'marketplace';
+    return api.post(`/api/${endpoint}/${id}/comments`, commentData);
+  },
   // 댓글 삭제
-  deleteComment: (id) => api.delete(`/comments/${id}`),
+  deleteComment: (type, postId, commentId) => {
+    const endpoint = type === 'post' ? 'posts' : 'marketplace';
+    return api.delete(`/api/${endpoint}/${postId}/comments/${commentId}`);
+  },
+};
+
+// IoT 센서 API
+export const sensorAPI = {
+  getLatestData: () => api.get('/api/sensor/latest'),
+  getHistoryData: () => api.get('/api/sensor/history'),
 };
 
 export default api;

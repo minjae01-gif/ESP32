@@ -1,9 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { 
+  Card, Button, Space, Typography, Tag, Divider, 
+  Avatar, Row, Col, Spin, message, Input, Upload 
+} from 'antd';
+import {
+  ArrowLeftOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  UserOutlined,
+  ClockCircleOutlined,
+  PlusOutlined,
+} from '@ant-design/icons';
 import { postAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Layout from '../components/Layout';
 import Comments from '../components/Comments';
+
+const { Title, Text, Paragraph } = Typography;
+const { TextArea } = Input;
 
 function PostDetail() {
   const { id } = useParams();
@@ -15,9 +30,7 @@ function PostDetail() {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
-  const [editImage, setEditImage] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState('');
-  const [error, setError] = useState('');
+  const [editImages, setEditImages] = useState([]);
 
   useEffect(() => {
     fetchPost();
@@ -30,34 +43,27 @@ function PostDetail() {
       setEditTitle(response.data.post.title);
       setEditContent(response.data.post.content);
     } catch (error) {
-      setError('게시글을 불러오는데 실패했습니다.');
+      message.error('게시글을 불러오는데 실패했습니다.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        setError('이미지 크기는 10MB 이하여야 합니다.');
-        return;
-      }
-
-      if (!file.type.startsWith('image/')) {
-        setError('이미지 파일만 업로드 가능합니다.');
-        return;
-      }
-
-      setEditImage(file);
-      setError('');
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewUrl(reader.result);
-      };
-      reader.readAsDataURL(file);
+  const handleImageUpload = (file) => {
+    if (editImages.length >= 5) {
+      message.error('이미지는 최대 5개까지만 업로드 가능합니다.');
+      return false;
     }
+    if (file.size > 5 * 1024 * 1024) {
+      message.error('이미지 크기는 5MB 이하여야 합니다.');
+      return false;
+    }
+    setEditImages([...editImages, file]);
+    return false;
+  };
+
+  const removeEditImage = (index) => {
+    setEditImages(editImages.filter((_, i) => i !== index));
   };
 
   const handleDelete = async () => {
@@ -65,18 +71,16 @@ function PostDetail() {
 
     try {
       await postAPI.deletePost(id);
-      alert('게시글이 삭제되었습니다.');
+      message.success('게시글이 삭제되었습니다.');
       navigate('/community');
     } catch (error) {
-      alert(error.response?.data?.message || '삭제에 실패했습니다.');
+      message.error('삭제에 실패했습니다.');
     }
   };
 
-  const handleUpdate = async (e) => {
-    e.preventDefault();
-
+  const handleUpdate = async () => {
     if (!editTitle.trim() || !editContent.trim()) {
-      setError('제목과 내용을 모두 입력해주세요.');
+      message.error('제목과 내용을 모두 입력해주세요.');
       return;
     }
 
@@ -84,18 +88,18 @@ function PostDetail() {
       const formData = new FormData();
       formData.append('title', editTitle);
       formData.append('content', editContent);
-      if (editImage) {
-        formData.append('image', editImage);
-      }
+      
+      editImages.forEach((image) => {
+        formData.append('images', image);
+      });
 
       await postAPI.updatePost(id, formData);
-      alert('게시글이 수정되었습니다.');
+      message.success('게시글이 수정되었습니다.');
       setIsEditing(false);
-      setEditImage(null);
-      setPreviewUrl('');
+      setEditImages([]);
       fetchPost();
     } catch (error) {
-      setError(error.response?.data?.message || '수정에 실패했습니다.');
+      message.error('수정에 실패했습니다.');
     }
   };
 
@@ -110,6 +114,54 @@ function PostDetail() {
     });
   };
 
+  // content 파싱 및 렌더링
+  const renderContent = () => {
+    if (!post.content) return null;
+
+    const lines = post.content.split('\n');
+    const elements = [];
+    let imageIndex = 0;
+
+    lines.forEach((line, index) => {
+      const imageMatch = line.match(/\[IMAGE:(\d+)\]/);
+      
+      if (imageMatch) {
+        // 이미지 블록
+        const imgIndex = parseInt(imageMatch[1]);
+        if (post.images && post.images[imgIndex]) {
+          const totalImages = post.images.length;
+          elements.push(
+            <div key={`image-${index}`} style={styles.imageBlock}>
+              <div style={styles.imageContainer}>
+                <img
+                  src={`http://localhost:5000${post.images[imgIndex].image_url}`}
+                  alt={`${post.title} - ${imgIndex + 1}`}
+                  style={styles.contentImage}
+                  onError={(e) => {
+                    console.error('이미지 로드 실패:', e.target.src);
+                    e.target.style.display = 'none';
+                  }}
+                />
+                <div style={styles.imageNumber}>
+                  {imgIndex + 1}/{totalImages}
+                </div>
+              </div>
+            </div>
+          );
+        }
+      } else if (line.trim()) {
+        // 텍스트 블록
+        elements.push(
+          <Paragraph key={`text-${index}`} style={styles.textBlock}>
+            {line}
+          </Paragraph>
+        );
+      }
+    });
+
+    return elements;
+  };
+
   const isAuthor = post && user && (
     post.user_id === user.userId || 
     post.user_id === user.id ||
@@ -119,7 +171,9 @@ function PostDetail() {
   if (loading) {
     return (
       <Layout>
-        <div style={styles.loading}>로딩 중...</div>
+        <div style={{ textAlign: 'center', padding: '100px' }}>
+          <Spin size="large" />
+        </div>
       </Layout>
     );
   }
@@ -127,7 +181,9 @@ function PostDetail() {
   if (!post) {
     return (
       <Layout>
-        <div style={styles.error}>게시글을 찾을 수 없습니다.</div>
+        <Card>
+          <Text>게시글을 찾을 수 없습니다.</Text>
+        </Card>
       </Layout>
     );
   }
@@ -135,146 +191,187 @@ function PostDetail() {
   return (
     <Layout>
       <div style={styles.container}>
-        <button 
+        <Button
+          icon={<ArrowLeftOutlined />}
           onClick={() => navigate('/community')}
-          style={styles.backBtn}
+          size="large"
+          style={{ marginBottom: '20px' }}
         >
-          ← 목록으로
-        </button>
+          목록으로
+        </Button>
 
         {isEditing ? (
           // 수정 모드
-          <div style={styles.editForm}>
-            <h2 style={styles.pageTitle}>게시글 수정</h2>
-            {error && <div style={styles.errorBox}>{error}</div>}
+          <Card>
+            <Title level={3}>게시글 수정</Title>
+            <Divider />
             
-            <form onSubmit={handleUpdate}>
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>제목</label>
-                <input
-                  type="text"
+            <Space direction="vertical" size="large" style={{ width: '100%' }}>
+              <div>
+                <Text strong>제목</Text>
+                <Input
+                  size="large"
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
-                  style={styles.input}
+                  style={{ marginTop: '8px' }}
                 />
               </div>
 
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>내용</label>
-                <textarea
+              <div>
+                <Text strong>내용</Text>
+                <TextArea
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value)}
-                  style={styles.textarea}
-                  rows="15"
+                  rows={15}
+                  style={{ marginTop: '8px' }}
                 />
               </div>
 
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>이미지 변경 (선택사항)</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  style={styles.fileInput}
-                />
+              <div>
+                <Text strong>이미지 (기존 이미지 삭제 후 새로 업로드)</Text>
                 
-                {/* 기존 이미지 표시 */}
-                {!previewUrl && post.image_url && (
-                  <div style={styles.previewContainer}>
-                    <p style={styles.currentImageLabel}>현재 이미지:</p>
-                    <img 
-                      src={`http://localhost:5000${post.image_url}`}
-                      alt="현재 이미지" 
-                      style={styles.preview}
-                    />
-                  </div>
+                {editImages.length > 0 && (
+                  <Row gutter={[16, 16]} style={{ marginTop: '12px' }}>
+                    {editImages.map((img, idx) => (
+                      <Col span={6} key={idx}>
+                        <Card
+                          size="small"
+                          cover={
+                            <img
+                              src={URL.createObjectURL(img)}
+                              alt={`preview-${idx}`}
+                              style={{ height: '150px', objectFit: 'cover' }}
+                            />
+                          }
+                          actions={[
+                            <Button
+                              icon={<DeleteOutlined />}
+                              size="small"
+                              danger
+                              onClick={() => removeEditImage(idx)}
+                            />
+                          ]}
+                        >
+                          <Tag>{idx + 1}/{editImages.length}</Tag>
+                        </Card>
+                      </Col>
+                    ))}
+                  </Row>
                 )}
-                
-                {/* 새 이미지 미리보기 */}
-                {previewUrl && (
-                  <div style={styles.previewContainer}>
-                    <p style={styles.currentImageLabel}>새 이미지 미리보기:</p>
-                    <img 
-                      src={previewUrl} 
-                      alt="미리보기" 
-                      style={styles.preview}
-                    />
-                  </div>
+
+                {editImages.length < 5 && (
+                  <Upload
+                    beforeUpload={handleImageUpload}
+                    showUploadList={false}
+                    accept="image/*"
+                  >
+                    <Button
+                      icon={<PlusOutlined />}
+                      block
+                      style={{ marginTop: '12px' }}
+                    >
+                      이미지 추가 ({editImages.length}/5)
+                    </Button>
+                  </Upload>
                 )}
               </div>
 
-              <div style={styles.buttonGroup}>
-                <button 
-                  type="button" 
+              <Space>
+                <Button
+                  type="primary"
+                  size="large"
+                  onClick={handleUpdate}
+                  style={{ background: '#52c41a', borderColor: '#52c41a' }}
+                >
+                  수정 완료
+                </Button>
+                <Button
+                  size="large"
                   onClick={() => {
                     setIsEditing(false);
-                    setEditImage(null);
-                    setPreviewUrl('');
+                    setEditImages([]);
                   }}
-                  style={styles.cancelBtn}
                 >
                   취소
-                </button>
-                <button type="submit" style={styles.submitBtn}>
-                  수정 완료
-                </button>
-              </div>
-            </form>
-          </div>
+                </Button>
+              </Space>
+            </Space>
+          </Card>
         ) : (
           // 보기 모드
-          <div style={styles.postContainer}>
-            <div style={styles.postHeader}>
-              <h1 style={styles.postTitle}>{post.title}</h1>
-              <div style={styles.postMeta}>
-                <span style={styles.author}>👤 {post.username}</span>
-                <span style={styles.date}>🕐 {formatDate(post.created_at)}</span>
-                {post.updated_at !== post.created_at && (
-                  <span style={styles.edited}>(수정됨)</span>
-                )}
+          <>
+            <Card style={styles.card}>
+              {/* 헤더 */}
+              <div style={styles.postHeader}>
+                <Title level={2} style={{ margin: 0 }}>
+                  {post.title}
+                </Title>
+                
+                <Divider />
+                
+                <Row justify="space-between" align="middle">
+                  <Col>
+                    <Space size="large">
+                      <Space>
+                        <Avatar 
+                          icon={<UserOutlined />} 
+                          style={{ backgroundColor: '#52c41a' }}
+                        />
+                        <Text strong style={{ fontSize: '16px' }}>
+                          {post.username}
+                        </Text>
+                      </Space>
+                      
+                      <Space>
+                        <ClockCircleOutlined style={{ color: '#8c8c8c' }} />
+                        <Text type="secondary">{formatDate(post.created_at)}</Text>
+                      </Space>
+                      
+                      {post.updated_at !== post.created_at && (
+                        <Tag color="green">수정됨</Tag>
+                      )}
+                    </Space>
+                  </Col>
+                </Row>
               </div>
-            </div>
 
-            {/* 이미지 표시 (있는 경우만) */}
-            {post.image_url && (
-              <div style={styles.imageContainer}>
-                {console.log('이미지 URL:', `http://localhost:5000${post.image_url}`)}
-                <img 
-                  src={`http://localhost:5000${post.image_url}`}
-                  alt={post.title}
-                  style={styles.postImage}
-                  onError={(e) => {
-                    console.error('이미지 로드 실패:', e.target.src);
-                    e.target.style.display = 'none';
-                  }}
-                />
+              <Divider />
+
+              {/* 내용 렌더링 (텍스트 + 이미지 혼합) */}
+              <div style={styles.contentWrapper}>
+                {renderContent()}
               </div>
-            )}
 
-            <div style={styles.postContent}>
-              {post.content}
-            </div>
-
-            {isAuthor && (
-              <div style={styles.actionButtons}>
-                <button 
-                  onClick={() => setIsEditing(true)}
-                  style={styles.editBtn}
-                >
-                  ✏️ 수정
-                </button>
-                <button 
-                  onClick={handleDelete}
-                  style={styles.deleteBtn}
-                >
-                  🗑️ 삭제
-                </button>
-              </div>
-            )}
+              {/* 작성자 액션 버튼 */}
+              {isAuthor && (
+                <>
+                  <Divider />
+                  <Space>
+                    <Button
+                      icon={<EditOutlined />}
+                      onClick={() => setIsEditing(true)}
+                      size="large"
+                    >
+                      수정
+                    </Button>
+                    <Button
+                      icon={<DeleteOutlined />}
+                      onClick={handleDelete}
+                      danger
+                      size="large"
+                    >
+                      삭제
+                    </Button>
+                  </Space>
+                </>
+              )}
+            </Card>
 
             {/* 댓글 섹션 */}
-            <Comments type="post" id={id} />
-          </div>
+            <Card style={{ marginTop: '24px' }}>
+              <Comments type="post" id={id} />
+            </Card>
+          </>
         )}
       </div>
     </Layout>
@@ -285,198 +382,53 @@ const styles = {
   container: {
     maxWidth: '900px',
     margin: '0 auto',
+    padding: '24px',
   },
-  backBtn: {
-    padding: '10px 20px',
-    backgroundColor: '#757575',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    marginBottom: '20px',
-    fontSize: '14px',
-  },
-  loading: {
-    textAlign: 'center',
-    padding: '50px',
-    fontSize: '18px',
-    color: '#666',
-  },
-  error: {
-    textAlign: 'center',
-    padding: '50px',
-    fontSize: '18px',
-    color: '#f44336',
-  },
-  postContainer: {
-    backgroundColor: 'white',
-    padding: '40px',
-    borderRadius: '8px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+  card: {
+    borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
   },
   postHeader: {
-    borderBottom: '2px solid #f0f0f0',
-    paddingBottom: '20px',
-    marginBottom: '30px',
+    marginBottom: '20px',
   },
-  postTitle: {
-    margin: '0 0 15px 0',
-    fontSize: '28px',
-    color: '#333',
+  contentWrapper: {
+    minHeight: '200px',
   },
-  postMeta: {
-    display: 'flex',
-    gap: '15px',
-    fontSize: '14px',
-    color: '#999',
-  },
-  author: {
-    fontWeight: '500',
-  },
-  date: {},
-  edited: {
-    color: '#4CAF50',
-  },
-  imageContainer: {
-    marginBottom: '30px',
-    width: '100%',
-    maxWidth: '100%',
-    borderRadius: '8px',
-    overflow: 'hidden',
-  },
-  postImage: {
-    width: '100%',
-    height: 'auto',
-    display: 'block',
-  },
-  postContent: {
+  textBlock: {
     fontSize: '16px',
     lineHeight: '1.8',
-    color: '#333',
-    whiteSpace: 'pre-wrap',
-    marginBottom: '30px',
+    marginBottom: '16px',
   },
-  actionButtons: {
-    display: 'flex',
-    gap: '10px',
-    justifyContent: 'flex-end',
-    borderTop: '1px solid #f0f0f0',
-    paddingTop: '20px',
+  imageBlock: {
+    margin: '24px 0',
   },
-  editBtn: {
-    padding: '10px 20px',
-    backgroundColor: '#2196F3',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '14px',
-  },
-  deleteBtn: {
-    padding: '10px 20px',
-    backgroundColor: '#f44336',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '14px',
-  },
-  // 수정 모드 스타일
-  editForm: {
-    backgroundColor: 'white',
-    padding: '40px',
-    borderRadius: '8px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-  },
-  pageTitle: {
-    marginTop: 0,
-    marginBottom: '20px',
-    color: '#333',
-  },
-  errorBox: {
-    backgroundColor: '#ffebee',
-    color: '#c62828',
-    padding: '12px',
-    borderRadius: '4px',
-    marginBottom: '20px',
-  },
-  inputGroup: {
-    marginBottom: '20px',
-  },
-  label: {
-    display: 'block',
-    marginBottom: '8px',
-    fontSize: '16px',
-    fontWeight: '500',
-    color: '#333',
-  },
-  input: {
+  imageContainer: {
+    position: 'relative',
     width: '100%',
-    padding: '12px',
-    fontSize: '16px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    boxSizing: 'border-box',
-  },
-  textarea: {
-    width: '100%',
-    padding: '12px',
-    fontSize: '16px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    resize: 'vertical',
-    fontFamily: 'inherit',
-    boxSizing: 'border-box',
-  },
-  fileInput: {
-    padding: '10px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    width: '100%',
-    boxSizing: 'border-box',
-  },
-  currentImageLabel: {
-    margin: '10px 0 5px 0',
-    fontSize: '14px',
-    color: '#666',
-  },
-  previewContainer: {
-    marginTop: '15px',
-    width: '100%',
-    maxWidth: '500px',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
+    maxWidth: '100%',
+    borderRadius: '12px',
     overflow: 'hidden',
+    background: '#f5f5f5',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  preview: {
-    width: '100%',
-    height: 'auto',
+  contentImage: {
+    maxWidth: '100%',
+    maxHeight: '600px',
+    objectFit: 'contain',
     display: 'block',
   },
-  buttonGroup: {
-    display: 'flex',
-    gap: '10px',
-    justifyContent: 'flex-end',
-    marginTop: '20px',
-  },
-  cancelBtn: {
-    padding: '12px 24px',
-    backgroundColor: '#757575',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
+  imageNumber: {
+    position: 'absolute',
+    top: '16px',
+    right: '16px',
+    background: 'rgba(0, 0, 0, 0.6)',
+    color: '#fff',
+    padding: '8px 16px',
+    borderRadius: '20px',
     fontSize: '16px',
-    cursor: 'pointer',
-  },
-  submitBtn: {
-    padding: '12px 24px',
-    backgroundColor: '#4CAF50',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    fontSize: '16px',
-    cursor: 'pointer',
+    fontWeight: 'bold',
   },
 };
 

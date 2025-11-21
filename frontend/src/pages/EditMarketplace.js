@@ -1,21 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { 
+  Card, Input, InputNumber, Button, Space, message, 
+  Typography, Tag, Divider, Row, Col, Spin 
+} from 'antd';
+import {
+  PlusOutlined,
+  DeleteOutlined,
+  ArrowLeftOutlined,
+  ArrowRightOutlined,
+  CloudUploadOutlined,
+} from '@ant-design/icons';
 import { marketplaceAPI } from '../services/api';
 import Layout from '../components/Layout';
+
+const { TextArea } = Input;
+const { Title, Text } = Typography;
 
 function EditMarketplace() {
   const { id } = useParams();
   const navigate = useNavigate();
-  
+  const fileInputRef = useRef(null);
+
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [price, setPrice] = useState('');
-  const [image, setImage] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState('');
-  const [currentImageUrl, setCurrentImageUrl] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [fetchLoading, setFetchLoading] = useState(true);
+  const [status, setStatus] = useState('selling');
+  const [images, setImages] = useState([]);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     fetchItem();
@@ -25,83 +39,154 @@ function EditMarketplace() {
     try {
       const response = await marketplaceAPI.getItem(id);
       const item = response.data.item;
-      
       setTitle(item.title);
       setContent(item.content);
       setPrice(item.price);
-      setCurrentImageUrl(item.image_url);
+      setStatus(item.status);
     } catch (error) {
-      setError('거래글을 불러오는데 실패했습니다.');
+      message.error('거래글을 불러오는데 실패했습니다.');
     } finally {
-      setFetchLoading(false);
+      setLoading(false);
     }
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        setError('이미지 크기는 5MB 이하여야 합니다.');
-        return;
+  // 이미지 검증
+  const validateImage = (file) => {
+    if (!file.type.startsWith('image/')) {
+      return '이미지 파일만 업로드 가능합니다.';
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      return '이미지 크기는 5MB 이하여야 합니다.';
+    }
+    return null;
+  };
+
+  // 이미지 추가 (다중)
+  const handleFilesSelect = (files) => {
+    const fileArray = Array.from(files);
+    const remainingSlots = 10 - images.length;
+
+    if (fileArray.length > remainingSlots) {
+      message.warning(`최대 ${remainingSlots}개의 이미지만 추가할 수 있습니다.`);
+    }
+
+    const validFiles = [];
+    const errors = [];
+
+    fileArray.slice(0, remainingSlots).forEach((file) => {
+      const error = validateImage(file);
+      if (error) {
+        errors.push(`${file.name}: ${error}`);
+      } else {
+        validFiles.push(file);
       }
+    });
 
-      if (!file.type.startsWith('image/')) {
-        setError('이미지 파일만 업로드 가능합니다.');
-        return;
-      }
+    if (errors.length > 0) {
+      message.error(errors.join('\n'));
+    }
 
-      setImage(file);
-      setError('');
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewUrl(reader.result);
-      };
-      reader.readAsDataURL(file);
+    if (validFiles.length > 0) {
+      setImages([...images, ...validFiles]);
+      message.success(`${validFiles.length}개의 이미지가 추가되었습니다.`);
     }
   };
 
-  const handleSubmit = async (e) => {
+  // 파일 선택
+  const handleFileInputChange = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleFilesSelect(e.target.files);
+    }
+    e.target.value = '';
+  };
+
+  // 드래그 앤 드롭
+  const handleDragOver = (e) => {
     e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
     
-    if (!title.trim() || !content.trim() || !price) {
-      setError('제목, 내용, 가격을 모두 입력해주세요.');
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFilesSelect(e.dataTransfer.files);
+    }
+  };
+
+  // 이미지 삭제
+  const removeImage = (index) => {
+    const newImages = images.filter((_, i) => i !== index);
+    setImages(newImages);
+  };
+
+  // 이미지 순서 변경
+  const moveImageLeft = (index) => {
+    if (index === 0) return;
+    const newImages = [...images];
+    [newImages[index - 1], newImages[index]] = [newImages[index], newImages[index - 1]];
+    setImages(newImages);
+  };
+
+  const moveImageRight = (index) => {
+    if (index === images.length - 1) return;
+    const newImages = [...images];
+    [newImages[index], newImages[index + 1]] = [newImages[index + 1], newImages[index]];
+    setImages(newImages);
+  };
+
+  // 수정 제출
+  const handleSubmit = async () => {
+    if (!title.trim()) {
+      message.error('상품명을 입력해주세요.');
       return;
     }
 
-    if (price <= 0) {
-      setError('가격은 0원보다 커야 합니다.');
+    if (!content.trim()) {
+      message.error('상품 설명을 입력해주세요.');
       return;
     }
 
-    setLoading(true);
-    setError('');
+    if (!price || price <= 0) {
+      message.error('가격을 입력해주세요.');
+      return;
+    }
+
+    setSubmitting(true);
 
     try {
       const formData = new FormData();
       formData.append('title', title);
       formData.append('content', content);
       formData.append('price', price);
-      formData.append('status', 'selling'); // 상태 유지
+      formData.append('status', status);
       
-      if (image) {
-        formData.append('image', image);
-      }
+      images.forEach((image) => {
+        formData.append('images', image);
+      });
 
       await marketplaceAPI.updateItem(id, formData);
-      alert('거래글이 수정되었습니다.');
+      message.success('거래글이 수정되었습니다.');
       navigate(`/marketplace/${id}`);
     } catch (error) {
-      setError(error.response?.data?.message || '거래글 수정에 실패했습니다.');
+      message.error('거래글 수정에 실패했습니다.');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
-  if (fetchLoading) {
+  if (loading) {
     return (
       <Layout>
-        <div style={styles.loading}>로딩 중...</div>
+        <div style={{ textAlign: 'center', padding: '100px' }}>
+          <Spin size="large" />
+        </div>
       </Layout>
     );
   }
@@ -109,102 +194,175 @@ function EditMarketplace() {
   return (
     <Layout>
       <div style={styles.container}>
-        <h2 style={styles.pageTitle}>🛒 거래글 수정</h2>
-        
-        {error && <div style={styles.error}>{error}</div>}
+        <Card>
+          <Title level={2}>📝 거래글 수정</Title>
+          <Text type="secondary">
+            새로운 이미지를 드래그하여 추가하세요! (최대 10개)
+          </Text>
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          
+          <Divider />
+
           {/* 이미지 업로드 */}
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>상품 이미지</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-              style={styles.fileInput}
-            />
-            
-            {/* 기존 이미지 표시 */}
-            {!previewUrl && currentImageUrl && (
-              <div style={styles.previewContainer}>
-                <p style={styles.currentImageLabel}>현재 이미지:</p>
-                <img 
-                  src={`http://localhost:5000${currentImageUrl}`}
-                  alt="현재 이미지" 
-                  style={styles.preview}
-                />
-              </div>
+          <div style={styles.section}>
+            <Space align="center" style={{ marginBottom: '12px' }}>
+              <Text strong>상품 이미지</Text>
+              <Tag color="green">{images.length}/10</Tag>
+            </Space>
+
+            <div
+              style={{
+                ...styles.dropZone,
+                borderColor: isDragging ? '#52c41a' : '#d9d9d9',
+                background: isDragging ? '#f6ffed' : '#fafafa',
+              }}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <CloudUploadOutlined style={{ fontSize: '48px', color: '#52c41a' }} />
+              <Title level={4} style={{ margin: '16px 0 8px 0' }}>
+                {isDragging ? '여기에 놓으세요!' : '새 이미지 추가하기'}
+              </Title>
+              <Text type="secondary">
+                여러 이미지를 한번에 선택 가능 (기존 이미지 대체)
+              </Text>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFileInputChange}
+                style={{ display: 'none' }}
+              />
+            </div>
+
+            {images.length > 0 && (
+              <>
+                <Divider />
+                <Row gutter={[16, 16]}>
+                  {images.map((image, index) => (
+                    <Col xs={12} sm={8} md={6} key={index}>
+                      <Card
+                        size="small"
+                        cover={
+                          <div style={styles.imageWrapper}>
+                            <img
+                              src={URL.createObjectURL(image)}
+                              alt={`preview-${index}`}
+                              style={styles.previewImg}
+                            />
+                            <div style={styles.imageOrder}>
+                              {index + 1}/{images.length}
+                            </div>
+                            {index === 0 && (
+                              <div style={styles.mainBadge}>대표</div>
+                            )}
+                          </div>
+                        }
+                        actions={[
+                          <Button
+                            icon={<ArrowLeftOutlined />}
+                            size="small"
+                            disabled={index === 0}
+                            onClick={() => moveImageLeft(index)}
+                          />,
+                          <Button
+                            icon={<DeleteOutlined />}
+                            size="small"
+                            danger
+                            onClick={() => removeImage(index)}
+                          />,
+                          <Button
+                            icon={<ArrowRightOutlined />}
+                            size="small"
+                            disabled={index === images.length - 1}
+                            onClick={() => moveImageRight(index)}
+                          />,
+                        ]}
+                      >
+                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                          {image.name.substring(0, 15)}...
+                        </Text>
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
+              </>
             )}
-            
-            {/* 새 이미지 미리보기 */}
-            {previewUrl && (
-              <div style={styles.previewContainer}>
-                <p style={styles.currentImageLabel}>새 이미지 미리보기:</p>
-                <img 
-                  src={previewUrl} 
-                  alt="미리보기" 
-                  style={styles.preview}
-                />
-              </div>
-            )}
-            <p style={styles.hint}>* 최대 5MB, 이미지 파일만 가능</p>
           </div>
 
-          {/* 제목 */}
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>제목</label>
-            <input
-              type="text"
+          <Divider />
+
+          {/* 상품명 */}
+          <div style={styles.section}>
+            <Text strong>상품명</Text>
+            <Input
+              size="large"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="상품 제목을 입력하세요"
-              style={styles.input}
+              style={{ marginTop: '8px' }}
+              maxLength={100}
+              showCount
             />
           </div>
+
+          <Divider />
 
           {/* 가격 */}
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>가격 (원)</label>
-            <input
-              type="number"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              placeholder="가격을 입력하세요"
-              style={styles.input}
-              min="0"
-            />
+          <div style={styles.section}>
+            <Text strong>가격</Text>
+            <Space.Compact style={{ width: '100%', marginTop: '8px' }}>
+              <InputNumber
+                size="large"
+                value={price}
+                onChange={setPrice}
+                style={{ width: '100%' }}
+                min={0}
+                max={10000000}
+                formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                parser={value => value.replace(/\$\s?|(,*)/g, '')}
+              />
+              <Button size="large">원</Button>
+            </Space.Compact>
           </div>
 
-          {/* 내용 */}
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>상품 설명</label>
-            <textarea
+          <Divider />
+
+          {/* 상품 설명 */}
+          <div style={styles.section}>
+            <Text strong>상품 설명</Text>
+            <TextArea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="상품에 대한 설명을 입력하세요"
-              style={styles.textarea}
-              rows="10"
+              style={{ marginTop: '8px' }}
+              rows={10}
+              maxLength={1000}
+              showCount
             />
           </div>
 
-          <div style={styles.buttonGroup}>
-            <button 
-              type="button" 
+          <Divider />
+
+          {/* 버튼 */}
+          <Space>
+            <Button
+              size="large"
               onClick={() => navigate(`/marketplace/${id}`)}
-              style={styles.cancelBtn}
             >
               취소
-            </button>
-            <button 
-              type="submit" 
-              disabled={loading}
-              style={styles.submitBtn}
+            </Button>
+            <Button
+              type="primary"
+              size="large"
+              onClick={handleSubmit}
+              loading={submitting}
+              style={{ background: '#52c41a', borderColor: '#52c41a' }}
             >
-              {loading ? '수정 중...' : '수정 완료'}
-            </button>
-          </div>
-        </form>
+              수정 완료
+            </Button>
+          </Space>
+        </Card>
       </div>
     </Layout>
   );
@@ -212,112 +370,59 @@ function EditMarketplace() {
 
 const styles = {
   container: {
-    maxWidth: '800px',
+    maxWidth: '900px',
     margin: '0 auto',
-    backgroundColor: 'white',
-    padding: '40px',
-    borderRadius: '8px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    padding: '24px',
   },
-  loading: {
-    textAlign: 'center',
-    padding: '50px',
-    fontSize: '18px',
-    color: '#666',
-  },
-  pageTitle: {
-    marginTop: 0,
-    marginBottom: '30px',
-    color: '#333',
-  },
-  error: {
-    backgroundColor: '#ffebee',
-    color: '#c62828',
-    padding: '12px',
-    borderRadius: '4px',
-    marginBottom: '20px',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '25px',
-  },
-  inputGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  label: {
+  section: {
     marginBottom: '8px',
-    fontSize: '16px',
-    fontWeight: '500',
-    color: '#333',
   },
-  input: {
-    padding: '12px',
-    fontSize: '16px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-  },
-  textarea: {
-    padding: '12px',
-    fontSize: '16px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    resize: 'vertical',
-    fontFamily: 'inherit',
-  },
-  fileInput: {
-    padding: '10px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
+  dropZone: {
+    border: '2px dashed #d9d9d9',
+    borderRadius: '12px',
+    padding: '40px',
+    textAlign: 'center',
     cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    marginBottom: '16px',
   },
-  hint: {
-    margin: '5px 0 0 0',
-    fontSize: '14px',
-    color: '#999',
-  },
-  currentImageLabel: {
-    margin: '10px 0 5px 0',
-    fontSize: '14px',
-    color: '#666',
-  },
-  previewContainer: {
-    marginTop: '15px',
+  imageWrapper: {
+    position: 'relative',
     width: '100%',
-    maxWidth: '400px',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
+    paddingTop: '100%',
+    background: '#f5f5f5',
+    borderRadius: '8px 8px 0 0',
     overflow: 'hidden',
   },
-  preview: {
+  previewImg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
     width: '100%',
-    height: 'auto',
-    display: 'block',
+    height: '100%',
+    objectFit: 'cover',
   },
-  buttonGroup: {
-    display: 'flex',
-    gap: '10px',
-    justifyContent: 'flex-end',
-    marginTop: '10px',
+  imageOrder: {
+    position: 'absolute',
+    top: '8px',
+    right: '8px',
+    background: 'rgba(0, 0, 0, 0.6)',
+    color: '#fff',
+    padding: '4px 12px',
+    borderRadius: '12px',
+    fontSize: '14px',
+    fontWeight: 'bold',
   },
-  cancelBtn: {
-    padding: '12px 24px',
-    backgroundColor: '#757575',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    fontSize: '16px',
-    cursor: 'pointer',
-  },
-  submitBtn: {
-    padding: '12px 24px',
-    backgroundColor: '#4CAF50',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    fontSize: '16px',
-    cursor: 'pointer',
+  mainBadge: {
+    position: 'absolute',
+    top: '8px',
+    left: '8px',
+    background: '#52c41a',
+    color: '#fff',
+    padding: '4px 12px',
+    borderRadius: '12px',
+    fontSize: '14px',
+    fontWeight: 'bold',
   },
 };
 

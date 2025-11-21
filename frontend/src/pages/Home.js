@@ -1,28 +1,24 @@
 import React from 'react';
+import { Button, Card } from 'antd';
 import Layout from '../components/Layout';
 
 function Home() {
   return (
     <Layout>
-      <div style={styles.content}>
-        <h2 style={styles.title}>🏠 홈</h2>
+      <div style={{ padding: '40px' }}>
+        <h1>🏠 홈페이지</h1>
         
-        <div style={styles.cards}>
-          <div style={styles.card}>
-            <h3>🛒 식물 거래</h3>
-            <p>준비 중입니다...</p>
-          </div>
-
-          <div style={styles.card}>
-            <h3>💬 커뮤니티</h3>
-            <p>준비 중입니다...</p>
-          </div>
-
-          <div style={styles.card}>
-            <h3>📊 대시보드</h3>
-            <p>준비 중입니다...</p>
-          </div>
-        </div>
+        {/* 테스트용 Ant Design 컴포넌트 */}
+        <Card 
+          title="Ant Design 테스트" 
+          style={{ width: 300, marginTop: 20 }}
+        >
+          <Button type="primary">테스트 버튼</Button>
+        </Card>
+        
+        <p style={{ marginTop: '20px' }}>
+          식물 커뮤니티에 오신 것을 환영합니다! 🌿
+        </p>
       </div>
     </Layout>
   );

@@ -1,11 +1,29 @@
 import React, { useState, useEffect } from 'react';
+import { 
+  Card, Row, Col, Button, Space, Typography, Tag, Badge, 
+  Input, Select, Empty, Statistic 
+} from 'antd';
+import {
+  ShoppingOutlined,
+  PlusOutlined,
+  SearchOutlined,
+  DollarOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+} from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { marketplaceAPI } from '../services/api';
 import Layout from '../components/Layout';
 
+const { Title, Text } = Typography;
+const { Search } = Input;
+const { Option } = Select;
+
 function Marketplace() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchText, setSearchText] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -14,82 +32,196 @@ function Marketplace() {
 
   const fetchItems = async () => {
     try {
+      setLoading(true);
       const response = await marketplaceAPI.getItems();
       setItems(response.data.items);
     } catch (error) {
-      console.error('거래글 불러오기 실패:', error);
+      console.error('거래글 조회 실패:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const formatPrice = (price) => {
-    return new Intl.NumberFormat('ko-KR').format(price) + '원';
+    return new Intl.NumberFormat('ko-KR').format(price);
   };
 
-  if (loading) {
-    return (
-      <Layout>
-        <div style={styles.loading}>로딩 중...</div>
-      </Layout>
-    );
-  }
+  // 필터링
+  const filteredItems = items.filter(item => {
+    const matchesSearch = item.title.toLowerCase().includes(searchText.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const sellingCount = items.filter(item => item.status === 'selling').length;
+  const soldCount = items.filter(item => item.status === 'sold').length;
 
   return (
     <Layout>
       <div style={styles.container}>
+        {/* 헤더 */}
         <div style={styles.header}>
-          <h2 style={styles.title}>🛒 식물 거래</h2>
-          <button 
-            style={styles.writeBtn}
-            onClick={() => navigate('/marketplace/write')}
-          >
-            ✏️ 거래글 작성
-          </button>
+          <Title level={2} style={{ margin: 0 }}>
+            🛒 식물 거래
+          </Title>
+          <Space>
+            <Search
+              placeholder="상품명 검색..."
+              allowClear
+              enterButton={<SearchOutlined />}
+              size="large"
+              onChange={(e) => setSearchText(e.target.value)}
+              style={{ width: 280 }}
+            />
+            <Select
+              size="large"
+              defaultValue="all"
+              style={{ width: 140 }}
+              onChange={setStatusFilter}
+            >
+              <Option value="all">전체 상태</Option>
+              <Option value="selling">판매중</Option>
+              <Option value="sold">판매완료</Option>
+            </Select>
+            <Button
+              type="primary"
+              size="large"
+              icon={<PlusOutlined />}
+              onClick={() => navigate('/marketplace/write')}
+              style={{ background: '#52c41a', borderColor: '#52c41a' }}
+            >
+              상품 등록
+            </Button>
+          </Space>
         </div>
 
-        {items.length === 0 ? (
-          <div style={styles.empty}>
-            <p>아직 등록된 거래글이 없습니다.</p>
-            <p>첫 번째 거래글을 작성해보세요!</p>
-          </div>
-        ) : (
-          <div style={styles.grid}>
-            {items.map((item) => (
-              <div 
-                key={item.id} 
-                style={styles.card}
-                onClick={() => navigate(`/marketplace/${item.id}`)}
-              >
-                {/* 이미지 */}
-                <div style={styles.imageContainer}>
-                  {item.image_url ? (
-                    <img 
-                      src={`http://localhost:5000${item.image_url}`}
-                      alt={item.title}
-                      style={styles.image}
-                    />
-                  ) : (
-                    <div style={styles.noImage}>
-                      🌱
-                    </div>
-                  )}
-                  
-                  {/* 판매 상태 뱃지 */}
-                  {item.status === 'sold' && (
-                    <div style={styles.soldBadge}>판매완료</div>
-                  )}
-                </div>
+        {/* 통계 정보 */}
+        <Row gutter={16} style={{ marginBottom: '24px' }}>
+          <Col span={8}>
+            <Card style={styles.statCard}>
+              <Statistic
+                title="전체 상품"
+                value={items.length}
+                prefix={<ShoppingOutlined />}
+                valueStyle={{ color: '#52c41a' }}
+              />
+            </Card>
+          </Col>
+          <Col span={8}>
+            <Card style={styles.statCard}>
+              <Statistic
+                title="판매중"
+                value={sellingCount}
+                prefix={<ClockCircleOutlined />}
+                valueStyle={{ color: '#1890ff' }}
+              />
+            </Card>
+          </Col>
+          <Col span={8}>
+            <Card style={styles.statCard}>
+              <Statistic
+                title="판매완료"
+                value={soldCount}
+                prefix={<CheckCircleOutlined />}
+                valueStyle={{ color: '#8c8c8c' }}
+              />
+            </Card>
+          </Col>
+        </Row>
 
-                {/* 정보 */}
-                <div style={styles.info}>
-                  <h3 style={styles.itemTitle}>{item.title}</h3>
-                  <p style={styles.price}>{formatPrice(item.price)}</p>
-                  <p style={styles.author}>👤 {item.username}</p>
-                </div>
-              </div>
-            ))}
+        {/* 상품 그리드 */}
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '60px' }}>
+            <Text>로딩 중...</Text>
           </div>
+        ) : filteredItems.length === 0 ? (
+          <Empty
+            description={searchText ? '검색 결과가 없습니다.' : '등록된 상품이 없습니다.'}
+            style={{ padding: '60px' }}
+          />
+        ) : (
+          <Row gutter={[24, 24]}>
+            {filteredItems.map((item) => (
+              <Col xs={24} sm={12} md={8} lg={6} xl={6} key={item.id}>
+                <Badge.Ribbon
+                  text={item.status === 'sold' ? '판매완료' : '판매중'}
+                  color={item.status === 'sold' ? 'gray' : 'green'}
+                >
+                  <Card
+                    hoverable
+                    cover={
+                      item.image_url ? (
+                        <div style={styles.imageWrapper}>
+                          <img
+                            alt={item.title}
+                            src={`http://localhost:5000${item.image_url}`}
+                            style={styles.image}
+                            onError={(e) => {
+                              e.target.src = 'https://via.placeholder.com/300x200?text=No+Image';
+                            }}
+                          />
+                          {item.status === 'sold' && (
+                            <div style={styles.soldOverlay}>
+                              <CheckCircleOutlined style={{ fontSize: '48px', color: '#fff' }} />
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div style={styles.noImage}>
+                          <ShoppingOutlined style={{ fontSize: '48px', color: '#d9d9d9' }} />
+                        </div>
+                      )
+                    }
+                    onClick={() => navigate(`/marketplace/${item.id}`)}
+                    style={{
+                      ...styles.card,
+                      opacity: item.status === 'sold' ? 0.7 : 1,
+                    }}
+                  >
+                    <Card.Meta
+                      title={
+                        <div style={styles.titleWrapper}>
+                          <Text
+                            ellipsis
+                            style={{
+                              fontSize: '16px',
+                              fontWeight: '600',
+                              color: item.status === 'sold' ? '#8c8c8c' : '#262626',
+                            }}
+                          >
+                            {item.title}
+                          </Text>
+                        </div>
+                      }
+                      description={
+                        <Space direction="vertical" style={{ width: '100%' }}>
+                          <div style={styles.priceWrapper}>
+                            <Text
+                              strong
+                              style={{
+                                fontSize: '20px',
+                                color: item.status === 'sold' ? '#8c8c8c' : '#52c41a',
+                              }}
+                            >
+                              {formatPrice(item.price)}원
+                            </Text>
+                          </div>
+                          <Space>
+                            <Tag icon={<DollarOutlined />} color="green">
+                              {item.username}
+                            </Tag>
+                            <Text type="secondary" style={{ fontSize: '12px' }}>
+                              {new Date(item.created_at).toLocaleDateString('ko-KR')}
+                            </Text>
+                          </Space>
+                        </Space>
+                      }
+                    />
+                  </Card>
+                </Badge.Ribbon>
+              </Col>
+            ))}
+          </Row>
         )}
       </div>
     </Layout>
@@ -98,109 +230,67 @@ function Marketplace() {
 
 const styles = {
   container: {
-    maxWidth: '1200px',
-    margin: '0 auto',
+    padding: '24px',
   },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '30px',
+    marginBottom: '24px',
+    flexWrap: 'wrap',
+    gap: '16px',
+    padding: '24px',
+    background: '#fff',
+    borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
   },
-  title: {
-    margin: 0,
-    color: '#333',
-  },
-  writeBtn: {
-    padding: '12px 24px',
-    backgroundColor: '#4CAF50',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '16px',
-    cursor: 'pointer',
-    fontWeight: '500',
-  },
-  loading: {
-    textAlign: 'center',
-    fontSize: '18px',
-    padding: '50px',
-    color: '#666',
-  },
-  empty: {
-    textAlign: 'center',
-    padding: '80px 20px',
-    backgroundColor: 'white',
-    borderRadius: '8px',
-    color: '#666',
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-    gap: '20px',
+  statCard: {
+    borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
   },
   card: {
-    backgroundColor: 'white',
-    borderRadius: '8px',
+    borderRadius: '12px',
     overflow: 'hidden',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-    cursor: 'pointer',
-    transition: 'transform 0.2s, box-shadow 0.2s',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+    transition: 'all 0.3s ease',
+    height: '100%',
   },
-  imageContainer: {
+  imageWrapper: {
     position: 'relative',
     width: '100%',
-    height: '250px',
-    backgroundColor: '#f5f5f5',
+    height: '200px',
     overflow: 'hidden',
+    background: '#f5f5f5',
   },
   image: {
     width: '100%',
     height: '100%',
     objectFit: 'cover',
   },
-  noImage: {
-    width: '100%',
-    height: '100%',
+  soldOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0, 0, 0, 0.5)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '80px',
-    color: '#ddd',
   },
-  soldBadge: {
-    position: 'absolute',
-    top: '10px',
-    left: '10px',
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    color: 'white',
-    padding: '5px 15px',
-    borderRadius: '20px',
-    fontSize: '14px',
-    fontWeight: 'bold',
+  noImage: {
+    height: '200px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: '#fafafa',
   },
-  info: {
-    padding: '15px',
+  titleWrapper: {
+    marginBottom: '8px',
   },
-  itemTitle: {
-    margin: '0 0 10px 0',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    color: '#333',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
-  },
-  price: {
-    margin: '0 0 10px 0',
-    fontSize: '18px',
-    fontWeight: 'bold',
-    color: '#4CAF50',
-  },
-  author: {
-    margin: 0,
-    fontSize: '14px',
-    color: '#999',
+  priceWrapper: {
+    marginTop: '8px',
+    marginBottom: '8px',
   },
 };
 

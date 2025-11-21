@@ -28,7 +28,7 @@ const verifyToken = (req, res, next) => {
   }
 };
 
-// 이미지 업로드 설정
+// 이미지 업로드 설정 (최대 5개)
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, 'uploads/');
@@ -41,15 +41,26 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
   storage: storage,
-  limits: { fileSize: 10 * 1024 * 1024 },  // 10MB 제한
+  limits: { fileSize: 5 * 1024 * 1024 },  // 5MB 제한
   fileFilter: function (req, file, cb) {
-    const filetypes = /jpeg|jpg|png|gif|webp/;
-    const mimetype = filetypes.test(file.mimetype);
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-    
-    if (mimetype && extname) {
+    console.log('파일 업로드 시도:', {
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      fieldname: file.fieldname
+    });
+
+    // mimetype 체크
+    if (file.mimetype.startsWith('image/')) {
       return cb(null, true);
     }
+    
+    // 확장자로 한번 더 체크
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'].includes(ext)) {
+      return cb(null, true);
+    }
+    
+    console.error('이미지가 아닌 파일:', file);
     cb(new Error('이미지 파일만 업로드 가능합니다.'));
   }
 });
@@ -70,7 +81,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 특정 게시글 조회 (GET)
+// 특정 게시글 조회 (GET) - 이미지 포함
 router.get('/:id', async (req, res) => {
   try {
     const [posts] = await db.query(
@@ -85,7 +96,16 @@ router.get('/:id', async (req, res) => {
       });
     }
 
-    res.json({ success: true, post: posts[0] });
+    // 게시글에 연결된 이미지들 조회
+    const [images] = await db.query(
+      'SELECT * FROM post_images WHERE post_id = ? ORDER BY image_order ASC',
+      [req.params.id]
+    );
+
+    const post = posts[0];
+    post.images = images;
+
+    res.json({ success: true, post });
   } catch (error) {
     console.error('게시글 조회 에러:', error);
     res.status(500).json({ 
@@ -95,8 +115,8 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// 게시글 작성 (POST) - 로그인 필요, 이미지 업로드
-router.post('/', verifyToken, upload.single('image'), async (req, res) => {
+// 게시글 작성 (POST) - 다중 이미지 업로드 (최대 5개)
+router.post('/', verifyToken, upload.array('images', 5), async (req, res) => {
   try {
     const { title, content } = req.body;
 
@@ -107,17 +127,32 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
       });
     }
 
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
-
+    // 게시글 저장
     const [result] = await db.query(
-      'INSERT INTO posts (title, content, image_url, user_id, username) VALUES (?, ?, ?, ?, ?)',
-      [title, content, imageUrl, req.user.userId, req.user.username]
+      'INSERT INTO posts (title, content, user_id, username) VALUES (?, ?, ?, ?)',
+      [title, content, req.user.userId, req.user.username]
     );
+
+    const postId = result.insertId;
+
+    // 이미지들 저장
+    if (req.files && req.files.length > 0) {
+      const imageValues = req.files.map((file, index) => [
+        postId,
+        `/uploads/${file.filename}`,
+        index
+      ]);
+
+      await db.query(
+        'INSERT INTO post_images (post_id, image_url, image_order) VALUES ?',
+        [imageValues]
+      );
+    }
 
     res.status(201).json({ 
       success: true, 
       message: '게시글이 작성되었습니다.',
-      postId: result.insertId 
+      postId: postId 
     });
 
   } catch (error) {
@@ -130,7 +165,7 @@ router.post('/', verifyToken, upload.single('image'), async (req, res) => {
 });
 
 // 게시글 수정 (PUT) - 작성자만 가능
-router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
+router.put('/:id', verifyToken, upload.array('images', 5), async (req, res) => {
   try {
     const { title, content } = req.body;
     const postId = req.params.id;
@@ -155,14 +190,29 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
       });
     }
 
-    // 이미지 업데이트 (새 이미지가 있는 경우)
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : posts[0].image_url;
-
     // 게시글 수정
     await db.query(
-      'UPDATE posts SET title = ?, content = ?, image_url = ? WHERE id = ?',
-      [title, content, imageUrl, postId]
+      'UPDATE posts SET title = ?, content = ? WHERE id = ?',
+      [title, content, postId]
     );
+
+    // 새 이미지가 있으면 기존 이미지 삭제 후 추가
+    if (req.files && req.files.length > 0) {
+      // 기존 이미지 삭제
+      await db.query('DELETE FROM post_images WHERE post_id = ?', [postId]);
+
+      // 새 이미지 저장
+      const imageValues = req.files.map((file, index) => [
+        postId,
+        `/uploads/${file.filename}`,
+        index
+      ]);
+
+      await db.query(
+        'INSERT INTO post_images (post_id, image_url, image_order) VALUES ?',
+        [imageValues]
+      );
+    }
 
     res.json({ 
       success: true, 
@@ -178,7 +228,7 @@ router.put('/:id', verifyToken, upload.single('image'), async (req, res) => {
   }
 });
 
-// 게시글 삭제 (DELETE) - 작성자만 가능
+// 게시글 삭제 (DELETE) - 작성자만 가능 (이미지도 함께 삭제됨)
 router.delete('/:id', verifyToken, async (req, res) => {
   try {
     const postId = req.params.id;
@@ -203,7 +253,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
       });
     }
 
-    // 게시글 삭제
+    // 게시글 삭제 (CASCADE로 이미지도 함께 삭제됨)
     await db.query('DELETE FROM posts WHERE id = ?', [postId]);
 
     res.json({ 

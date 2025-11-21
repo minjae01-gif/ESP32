@@ -1,108 +1,166 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Layout, Menu } from 'antd';
+import {
+  HomeOutlined,
+  DashboardOutlined,
+  MessageOutlined,
+  ShoppingOutlined,
+  LogoutOutlined,
+} from '@ant-design/icons';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+
+const { Sider } = Layout;
 
 function Sidebar() {
+  const navigate = useNavigate();
   const location = useLocation();
+  const { user, logout } = useAuth();
 
-  const isActive = (path) => location.pathname === path;
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  // 현재 선택된 메뉴 키
+  const selectedKey = location.pathname;
+
+  const menuItems = [
+    {
+      key: '/',
+      icon: <HomeOutlined />,
+      label: '홈',
+      onClick: () => navigate('/'),
+    },
+    {
+      key: '/dashboard',
+      icon: <DashboardOutlined />,
+      label: '대시보드',
+      onClick: () => navigate('/dashboard'),
+    },
+    {
+      key: '/community',
+      icon: <MessageOutlined />,
+      label: '커뮤니티',
+      onClick: () => navigate('/community'),
+    },
+    {
+      key: '/marketplace',
+      icon: <ShoppingOutlined />,
+      label: '식물 거래',
+      onClick: () => navigate('/marketplace'),
+    },
+  ];
 
   return (
-    <div style={styles.sidebar}>
+    <Sider
+      width={240}
+      style={{
+        height: '100vh',
+        position: 'fixed',
+        left: 0,
+        top: 0,
+        bottom: 0,
+        background: '#001529',
+        boxShadow: '2px 0 8px rgba(0,0,0,0.15)',
+      }}
+    >
+      {/* 로고 영역 */}
       <div style={styles.logo}>
-        <h2 style={styles.logoText}>🌱 Plant Community</h2>
+        <span style={styles.logoIcon}>🌿</span>
+        <span style={styles.logoText}>Plant Community</span>
       </div>
 
-      <nav style={styles.nav}>
-        <Link 
-          to="/" 
-          style={{
-            ...styles.navItem,
-            ...(isActive('/') ? styles.navItemActive : {})
-          }}
-        >
-          <span style={styles.icon}>🏠</span>
-          <span>홈</span>
-        </Link>
+      {/* 사용자 정보 */}
+      <div style={styles.userInfo}>
+        <div style={styles.userAvatar}>
+          {user?.username?.charAt(0).toUpperCase() || 'U'}
+        </div>
+        <div style={styles.userName}>{user?.username || 'Guest'}</div>
+      </div>
 
-        <Link 
-          to="/community" 
-          style={{
-            ...styles.navItem,
-            ...(isActive('/community') ? styles.navItemActive : {})
-          }}
-        >
-          <span style={styles.icon}>💬</span>
-          <span>커뮤니티</span>
-        </Link>
+      {/* 메뉴 */}
+      <Menu
+        mode="inline"
+        selectedKeys={[selectedKey]}
+        items={menuItems}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          marginTop: '20px',
+        }}
+        theme="dark"
+      />
 
-        <Link 
-          to="/marketplace" 
-          style={{
-            ...styles.navItem,
-            ...(isActive('/marketplace') ? styles.navItemActive : {})
-          }}
-        >
-          <span style={styles.icon}>🛒</span>
-          <span>식물 거래</span>
-        </Link>
-
-        <Link 
-          to="/dashboard" 
-          style={{
-            ...styles.navItem,
-            ...(isActive('/dashboard') ? styles.navItemActive : {})
-          }}
-        >
-          <span style={styles.icon}>📊</span>
-          <span>대시보드</span>
-        </Link>
-      </nav>
-    </div>
+      {/* 로그아웃 버튼 */}
+      <div style={styles.logoutContainer}>
+        <Menu
+          mode="inline"
+          theme="dark"
+          style={{ background: 'transparent', border: 'none' }}
+          items={[
+            {
+              key: 'logout',
+              icon: <LogoutOutlined />,
+              label: '로그아웃',
+              onClick: handleLogout,
+              danger: true,
+            },
+          ]}
+        />
+      </div>
+    </Sider>
   );
 }
 
 const styles = {
-  sidebar: {
-    width: '250px',
-    height: '100vh',
-    backgroundColor: '#2c3e50',
-    color: 'white',
-    position: 'fixed',
-    left: 0,
-    top: 0,
-    padding: '20px 0',
-  },
   logo: {
-    padding: '0 20px',
-    marginBottom: '30px',
-    borderBottom: '1px solid rgba(255,255,255,0.1)',
-    paddingBottom: '20px',
-  },
-  logoText: {
-    margin: 0,
-    fontSize: '20px',
-    color: '#4CAF50',
-  },
-  nav: {
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  navItem: {
+    height: '64px',
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
-    padding: '15px 20px',
-    color: 'white',
-    textDecoration: 'none',
-    transition: 'background 0.2s',
-    cursor: 'pointer',
+    justifyContent: 'center',
+    background: 'rgba(255, 255, 255, 0.05)',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
   },
-  navItemActive: {
-    backgroundColor: 'rgba(76, 175, 80, 0.2)',
-    borderLeft: '4px solid #4CAF50',
+  logoIcon: {
+    fontSize: '28px',
+    marginRight: '10px',
   },
-  icon: {
-    fontSize: '20px',
+  logoText: {
+    color: '#fff',
+    fontSize: '18px',
+    fontWeight: 'bold',
+  },
+  userInfo: {
+    padding: '24px 20px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+  },
+  userAvatar: {
+    width: '60px',
+    height: '60px',
+    borderRadius: '50%',
+    background: '#52c41a',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '24px',
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: '12px',
+  },
+  userName: {
+    color: '#fff',
+    fontSize: '16px',
+    fontWeight: '500',
+  },
+  logoutContainer: {
+    position: 'absolute',
+    bottom: '20px',
+    left: 0,
+    right: 0,
   },
 };
 

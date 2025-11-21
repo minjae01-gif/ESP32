@@ -1,12 +1,27 @@
 import React, { useState, useEffect } from 'react';
+import { Table, Button, Space, Typography, Tag, Badge, Input } from 'antd';
+import {
+  EditOutlined,
+  CommentOutlined,
+  ClockCircleOutlined,
+  UserOutlined,
+  PlusOutlined,
+  SearchOutlined,
+} from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { postAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import Layout from '../components/Layout';
+
+const { Title } = Typography;
+const { Search } = Input;
 
 function Community() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchText, setSearchText] = useState('');
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchPosts();
@@ -14,10 +29,11 @@ function Community() {
 
   const fetchPosts = async () => {
     try {
+      setLoading(true);
       const response = await postAPI.getPosts();
       setPosts(response.data.posts);
     } catch (error) {
-      console.error('게시글 불러오기 실패:', error);
+      console.error('게시글 조회 실패:', error);
     } finally {
       setLoading(false);
     }
@@ -25,63 +41,169 @@ function Community() {
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+      const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+      if (diffHours === 0) {
+        const diffMinutes = Math.floor(diffTime / (1000 * 60));
+        return `${diffMinutes}분 전`;
+      }
+      return `${diffHours}시간 전`;
+    } else if (diffDays === 1) {
+      return '어제';
+    } else if (diffDays < 7) {
+      return `${diffDays}일 전`;
+    } else {
+      return date.toLocaleDateString('ko-KR');
+    }
   };
 
-  if (loading) {
-    return (
-      <Layout>
-        <div style={styles.loading}>로딩 중...</div>
-      </Layout>
-    );
-  }
+  // 검색 필터링
+  const filteredPosts = posts.filter(post =>
+    post.title.toLowerCase().includes(searchText.toLowerCase()) ||
+    post.username.toLowerCase().includes(searchText.toLowerCase())
+  );
+
+  // 테이블 컬럼 정의
+  const columns = [
+    {
+      title: '번호',
+      dataIndex: 'id',
+      key: 'id',
+      width: 80,
+      align: 'center',
+      render: (id) => <Badge count={id} style={{ backgroundColor: '#52c41a' }} />,
+    },
+    {
+      title: '제목',
+      dataIndex: 'title',
+      key: 'title',
+      ellipsis: true,
+      render: (text, record) => {
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {record.image_url && (
+              <Tag color="green" icon={<EditOutlined />}>
+                이미지
+              </Tag>
+            )}
+            <span
+              onClick={() => navigate(`/community/${record.id}`)}
+              style={{
+                fontSize: '15px',
+                fontWeight: '500',
+                color: '#262626',
+                cursor: 'pointer',
+              }}
+            >
+              {text}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      title: '작성자',
+      dataIndex: 'username',
+      key: 'username',
+      width: 150,
+      align: 'center',
+      render: (username, record) => (
+        <Space>
+          <UserOutlined style={{ color: '#52c41a' }} />
+          <span style={{ fontWeight: '500' }}>{username}</span>
+          {record.user_id === user?.userId && (
+            <Tag color="green">내글</Tag>
+          )}
+        </Space>
+      ),
+    },
+    {
+      title: '작성일',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 150,
+      align: 'center',
+      render: (date) => (
+        <Space>
+          <ClockCircleOutlined style={{ color: '#8c8c8c' }} />
+          <span style={{ color: '#595959' }}>{formatDate(date)}</span>
+        </Space>
+      ),
+    },
+  ];
 
   return (
     <Layout>
       <div style={styles.container}>
+        {/* 헤더 */}
         <div style={styles.header}>
-          <h2 style={styles.title}>💬 커뮤니티 게시판</h2>
-          <button 
-            style={styles.writeBtn}
-            onClick={() => navigate('/community/write')}
-          >
-            ✏️ 글쓰기
-          </button>
+          <Title level={2} style={{ margin: 0 }}>
+            💬 커뮤니티
+          </Title>
+          <Space>
+            <Search
+              placeholder="제목, 작성자 검색..."
+              allowClear
+              enterButton={<SearchOutlined />}
+              size="large"
+              onChange={(e) => setSearchText(e.target.value)}
+              style={{ width: 300 }}
+            />
+            <Button
+              type="primary"
+              size="large"
+              icon={<PlusOutlined />}
+              onClick={() => navigate('/community/write')}
+              style={{ background: '#52c41a', borderColor: '#52c41a' }}
+            >
+              글쓰기
+            </Button>
+          </Space>
         </div>
 
-        {posts.length === 0 ? (
-          <div style={styles.empty}>
-            <p>아직 작성된 게시글이 없습니다.</p>
-            <p>첫 번째 게시글을 작성해보세요!</p>
-          </div>
-        ) : (
-          <div style={styles.postList}>
-            {posts.map((post) => (
-              <div 
-                key={post.id} 
-                style={styles.postCard}
-                onClick={() => navigate(`/community/${post.id}`)}
-              >
-                <h3 style={styles.postTitle}>{post.title}</h3>
-                <p style={styles.postContent}>
-                  {post.content.length > 100 
-                    ? post.content.substring(0, 100) + '...' 
-                    : post.content}
-                </p>
-                <div style={styles.postMeta}>
-                  <span style={styles.author}>👤 {post.username}</span>
-                  <span style={styles.date}>🕐 {formatDate(post.created_at)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {/* 통계 정보 */}
+        <div style={styles.stats}>
+          <Space size="large">
+            <span>
+              전체 게시글: <strong style={{ color: '#52c41a', fontSize: '16px' }}>
+                {filteredPosts.length}
+              </strong>개
+            </span>
+            {searchText && (
+              <span>
+                검색 결과: <strong style={{ color: '#1890ff', fontSize: '16px' }}>
+                  {filteredPosts.length}
+                </strong>개
+              </span>
+            )}
+          </Space>
+        </div>
+
+        {/* 게시글 테이블 */}
+        <Table
+          columns={columns}
+          dataSource={filteredPosts}
+          rowKey="id"
+          loading={loading}
+          pagination={{
+            pageSize: 15,
+            showSizeChanger: false,
+            showTotal: (total) => `총 ${total}개`,
+          }}
+          style={styles.table}
+          rowClassName={() => 'hoverable-row'}
+          onRow={(record) => ({
+            onClick: () => navigate(`/community/${record.id}`),
+            style: { cursor: 'pointer' },
+          })}
+          locale={{
+            emptyText: searchText ? '검색 결과가 없습니다.' : '게시글이 없습니다.',
+          }}
+        />
       </div>
     </Layout>
   );
@@ -89,75 +211,28 @@ function Community() {
 
 const styles = {
   container: {
-    maxWidth: '1000px',
-    margin: '0 auto',
+    padding: '24px',
+    background: '#fff',
+    borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
   },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '30px',
+    marginBottom: '24px',
+    flexWrap: 'wrap',
+    gap: '16px',
   },
-  title: {
-    margin: 0,
-    color: '#333',
-  },
-  writeBtn: {
-    padding: '12px 24px',
-    backgroundColor: '#4CAF50',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '16px',
-    cursor: 'pointer',
-    fontWeight: '500',
-  },
-  loading: {
-    textAlign: 'center',
-    fontSize: '18px',
-    padding: '50px',
-    color: '#666',
-  },
-  empty: {
-    textAlign: 'center',
-    padding: '80px 20px',
-    backgroundColor: 'white',
+  stats: {
+    padding: '16px',
+    background: '#f5f5f5',
     borderRadius: '8px',
-    color: '#666',
+    marginBottom: '24px',
   },
-  postList: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '15px',
+  table: {
+    background: '#fff',
   },
-  postCard: {
-    backgroundColor: 'white',
-    padding: '25px',
-    borderRadius: '8px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-    cursor: 'pointer',
-    transition: 'transform 0.2s, box-shadow 0.2s',
-  },
-  postTitle: {
-    margin: '0 0 12px 0',
-    fontSize: '20px',
-    color: '#333',
-  },
-  postContent: {
-    margin: '0 0 15px 0',
-    color: '#666',
-    lineHeight: '1.6',
-  },
-  postMeta: {
-    display: 'flex',
-    gap: '20px',
-    fontSize: '14px',
-    color: '#999',
-  },
-  author: {
-    fontWeight: '500',
-  },
-  date: {},
 };
 
 export default Community;

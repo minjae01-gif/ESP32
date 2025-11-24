@@ -1,11 +1,12 @@
 import React from 'react';
-import { Layout, Menu } from 'antd';
+import { Layout, Menu, Avatar } from 'antd';
 import {
   HomeOutlined,
   DashboardOutlined,
   MessageOutlined,
   ShoppingOutlined,
   LogoutOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -50,6 +51,12 @@ function Sidebar() {
       label: '식물 거래',
       onClick: () => navigate('/marketplace'),
     },
+    {
+      key: '/mypage',
+      icon: <UserOutlined />,
+      label: '마이페이지',
+      onClick: () => navigate('/mypage'),
+    },
   ];
 
   return (
@@ -72,10 +79,21 @@ function Sidebar() {
       </div>
 
       {/* 사용자 정보 */}
-      <div style={styles.userInfo}>
-        <div style={styles.userAvatar}>
-          {user?.username?.charAt(0).toUpperCase() || 'U'}
-        </div>
+      <div style={styles.userInfo}
+      onClick={() => navigate('/mypage')}
+      >
+        {/* 기존: <div style={styles.userAvatar}>...</div> 
+           변경: Ant Design Avatar 컴포넌트 사용 
+        */}
+        <Avatar 
+          size={64} 
+          icon={<UserOutlined />} 
+          style={{ 
+            backgroundColor: '#52c41a', 
+            marginBottom: '12px',
+            cursor: 'pointer' 
+          }} 
+        />
         <div style={styles.userName}>{user?.username || 'Guest'}</div>
       </div>
 
@@ -138,6 +156,7 @@ const styles = {
     alignItems: 'center',
     borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
   },
+  //사용하지 않지만 혹시몰라서 남겨둠
   userAvatar: {
     width: '60px',
     height: '60px',

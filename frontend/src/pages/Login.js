@@ -1,151 +1,116 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
+import { Form, Input, Button, Card, Typography, message, Space } from 'antd';
+import { UserOutlined, LockOutlined } from '@ant-design/icons';
+import { useAuth } from '../context/AuthContext';
+
+const { Title, Text } = Typography;
 
 function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
+  const onFinish = async (values) => {
     setLoading(true);
-
-    const result = await login(email, password);
-    
-    if (result.success) {
-      navigate('/'); // 로그인 성공 시 홈으로 이동
-    } else {
-      setError(result.message);
+    try {
+      await login(values);
+      message.success('로그인 성공!');
+      navigate('/dashboard');
+    } catch (error) {
+      message.error('로그인에 실패했습니다. 이메일과 비밀번호를 확인하세요.');
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (
     <div style={styles.container}>
-      <div style={styles.formBox}>
-        <h2 style={styles.title}>🌱 로그인</h2>
-        
-        {error && <div style={styles.error}>{error}</div>}
-        
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>이메일</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={styles.input}
-              placeholder="example@email.com"
-            />
-          </div>
+      <Card style={styles.card}>
+        <Title level={2} style={{ textAlign: 'center', marginBottom: '30px' }}>
+          🌱 로그인
+        </Title>
 
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>비밀번호</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={styles.input}
-              placeholder="비밀번호를 입력하세요"
-            />
-          </div>
-
-          <button 
-            type="submit" 
-            disabled={loading}
-            style={styles.button}
+        <Form
+          name="login"
+          onFinish={onFinish}
+          autoComplete="off"
+          layout="vertical"
+        >
+          <Form.Item
+            name="email"
+            rules={[
+              { required: true, message: '이메일을 입력하세요!' },
+              { type: 'email', message: '올바른 이메일을 입력하세요!' },
+            ]}
           >
-            {loading ? '로그인 중...' : '로그인'}
-          </button>
-        </form>
+            <Input
+              prefix={<UserOutlined />}
+              placeholder="이메일"
+              size="large"
+            />
+          </Form.Item>
 
-        <div style={styles.footer}>
-          <p>계정이 없으신가요? <Link to="/register" style={styles.link}>회원가입</Link></p>
-        </div>
-      </div>
+          <Form.Item
+            name="password"
+            rules={[
+              { required: true, message: '비밀번호를 입력하세요!' },
+            ]}
+          >
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder="비밀번호"
+              size="large"
+            />
+          </Form.Item>
+
+          <Form.Item>
+            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+              <Button
+                type="primary"
+                htmlType="submit"
+                size="large"
+                block
+                loading={loading}
+                style={{ background: '#52c41a', borderColor: '#52c41a' }}
+              >
+                로그인
+              </Button>
+              <Button
+                size="large"
+                block
+                onClick={() => navigate('/dashboard')}
+                style={{ borderColor: '#d9d9d9' }}
+              >
+                🏠 게스트로 둘러보기
+              </Button>
+            </Space>
+          </Form.Item>
+
+          <div style={{ textAlign: 'center' }}>
+            <Text>아직 계정이 없으신가요? </Text>
+            <Link to="/register">회원가입</Link>
+          </div>
+        </Form>
+      </Card>
     </div>
   );
 }
 
 const styles = {
   container: {
+    minHeight: '100vh',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: '100vh',
-    backgroundColor: '#f5f5f5',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    padding: '20px',
   },
-  formBox: {
-    backgroundColor: 'white',
-    padding: '40px',
-    borderRadius: '8px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+  card: {
     width: '100%',
-    maxWidth: '400px',
-  },
-  title: {
-    textAlign: 'center',
-    marginBottom: '30px',
-    color: '#333',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  inputGroup: {
-    marginBottom: '20px',
-  },
-  label: {
-    display: 'block',
-    marginBottom: '5px',
-    color: '#555',
-    fontSize: '14px',
-  },
-  input: {
-    width: '100%',
-    padding: '10px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    fontSize: '14px',
-    boxSizing: 'border-box',
-  },
-  button: {
-    padding: '12px',
-    backgroundColor: '#4CAF50',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    fontSize: '16px',
-    cursor: 'pointer',
-    marginTop: '10px',
-  },
-  error: {
-    backgroundColor: '#ffebee',
-    color: '#c62828',
-    padding: '10px',
-    borderRadius: '4px',
-    marginBottom: '20px',
-    fontSize: '14px',
-  },
-  footer: {
-    textAlign: 'center',
-    marginTop: '20px',
-    fontSize: '14px',
-    color: '#666',
-  },
-  link: {
-    color: '#4CAF50',
-    textDecoration: 'none',
-    fontWeight: 'bold',
+    maxWidth: '450px',
+    borderRadius: '12px',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
   },
 };
 

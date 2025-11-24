@@ -1,12 +1,12 @@
 import React from 'react';
-import { Layout, Menu, Avatar } from 'antd';
+import { Layout, Menu, Button } from 'antd';
 import {
   HomeOutlined,
   DashboardOutlined,
   MessageOutlined,
   ShoppingOutlined,
   LogoutOutlined,
-  UserOutlined,
+  LoginOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -20,10 +20,13 @@ function Sidebar() {
 
   const handleLogout = () => {
     logout();
+    navigate('/dashboard');
+  };
+
+  const handleLogin = () => {
     navigate('/login');
   };
 
-  // 현재 선택된 메뉴 키
   const selectedKey = location.pathname;
 
   const menuItems = [
@@ -51,12 +54,6 @@ function Sidebar() {
       label: '식물 거래',
       onClick: () => navigate('/marketplace'),
     },
-    {
-      key: '/mypage',
-      icon: <UserOutlined />,
-      label: '마이페이지',
-      onClick: () => navigate('/mypage'),
-    },
   ];
 
   return (
@@ -79,22 +76,18 @@ function Sidebar() {
       </div>
 
       {/* 사용자 정보 */}
-      <div style={styles.userInfo}
-      onClick={() => navigate('/mypage')}
-      >
-        {/* 기존: <div style={styles.userAvatar}>...</div> 
-           변경: Ant Design Avatar 컴포넌트 사용 
-        */}
-        <Avatar 
-          size={64} 
-          icon={<UserOutlined />} 
-          style={{ 
-            backgroundColor: '#52c41a', 
-            marginBottom: '12px',
-            cursor: 'pointer' 
-          }} 
-        />
-        <div style={styles.userName}>{user?.username || 'Guest'}</div>
+      <div style={styles.userInfo}>
+        <div style={styles.userAvatar}>
+          {user ? user.username?.charAt(0).toUpperCase() : '👤'}
+        </div>
+        <div style={styles.userName}>
+          {user ? user.username : 'Guest'}
+        </div>
+        {!user && (
+          <div style={{ fontSize: '12px', color: '#8c8c8c', marginTop: '4px' }}>
+            게스트 모드
+          </div>
+        )}
       </div>
 
       {/* 메뉴 */}
@@ -110,22 +103,38 @@ function Sidebar() {
         theme="dark"
       />
 
-      {/* 로그아웃 버튼 */}
-      <div style={styles.logoutContainer}>
-        <Menu
-          mode="inline"
-          theme="dark"
-          style={{ background: 'transparent', border: 'none' }}
-          items={[
-            {
-              key: 'logout',
-              icon: <LogoutOutlined />,
-              label: '로그아웃',
-              onClick: handleLogout,
-              danger: true,
-            },
-          ]}
-        />
+      {/* 로그인/로그아웃 버튼 */}
+      <div style={styles.authContainer}>
+        {user ? (
+          <Menu
+            mode="inline"
+            theme="dark"
+            style={{ background: 'transparent', border: 'none' }}
+            items={[
+              {
+                key: 'logout',
+                icon: <LogoutOutlined />,
+                label: '로그아웃',
+                onClick: handleLogout,
+                danger: true,
+              },
+            ]}
+          />
+        ) : (
+          <Button
+            type="primary"
+            icon={<LoginOutlined />}
+            onClick={handleLogin}
+            block
+            size="large"
+            style={{
+              background: '#52c41a',
+              borderColor: '#52c41a',
+            }}
+          >
+            로그인
+          </Button>
+        )}
       </div>
     </Sider>
   );
@@ -156,7 +165,6 @@ const styles = {
     alignItems: 'center',
     borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
   },
-  //사용하지 않지만 혹시몰라서 남겨둠
   userAvatar: {
     width: '60px',
     height: '60px',
@@ -175,7 +183,7 @@ const styles = {
     fontSize: '16px',
     fontWeight: '500',
   },
-  logoutContainer: {
+  authContainer: {
     position: 'absolute',
     bottom: '20px',
     left: 0,

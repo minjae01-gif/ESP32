@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Card, Input, Button, Space, Upload, message, 
   Typography, Tag, Divider 
@@ -13,11 +13,13 @@ import {
 } from '@ant-design/icons';
 import { postAPI } from '../services/api';
 import Layout from '../components/Layout';
+import { useAuth } from '../context/AuthContext';
 
 const { TextArea } = Input;
 const { Title, Text } = Typography;
 
 function WritePost() {
+  const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [contentBlocks, setContentBlocks] = useState([
     { type: 'text', content: '', id: Date.now() }
@@ -25,6 +27,14 @@ function WritePost() {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  // 로그인 체크
+  useEffect(() => {
+    if (!user) {
+      message.warning('로그인이 필요한 서비스입니다.');
+      navigate('/login');
+    }
+  }, [user, navigate]);
 
   // 텍스트 블록 추가
   const addTextBlock = (afterIndex) => {

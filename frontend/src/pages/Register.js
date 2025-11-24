@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Form, Input, Button, Card, Typography, message } from 'antd';
+import { Form, Input, Button, Card, Typography, message, Space } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
 import { authAPI } from '../services/api';
 
@@ -101,16 +101,26 @@ function Register() {
           </Form.Item>
 
           <Form.Item>
-            <Button
-              type="primary"
-              htmlType="submit"
-              size="large"
-              block
-              loading={loading}
-              style={{ background: '#52c41a', borderColor: '#52c41a' }}
-            >
-              회원가입
-            </Button>
+            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+              <Button
+                type="primary"
+                htmlType="submit"
+                size="large"
+                block
+                loading={loading}
+                style={{ background: '#52c41a', borderColor: '#52c41a' }}
+              >
+                회원가입
+              </Button>
+              <Button
+                size="large"
+                block
+                onClick={() => navigate('/dashboard')}
+                style={{ borderColor: '#d9d9d9' }}
+              >
+                🏠 게스트로 둘러보기
+              </Button>
+            </Space>
           </Form.Item>
 
           <div style={{ textAlign: 'center' }}>

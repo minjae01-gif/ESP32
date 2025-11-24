@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Space, Typography, Tag, Badge, Input } from 'antd';
+import { Table, Button, Space, Typography, Tag, Badge, Input, message } from 'antd';
 import {
   EditOutlined,
   CommentOutlined,
@@ -22,6 +22,15 @@ function Community() {
   const [searchText, setSearchText] = useState('');
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  const handleWriteClick = () => {
+    if (!user) {
+      message.warning('로그인 후 글을 작성할 수 있습니다.');
+      navigate('/login');
+      return;
+    }
+    navigate('/community/write');
+  };
 
   useEffect(() => {
     fetchPosts();
@@ -153,12 +162,10 @@ function Community() {
               onChange={(e) => setSearchText(e.target.value)}
               style={{ width: 300 }}
             />
-            <Button
-              type="primary"
-              size="large"
+            <Button 
+              type="primary" 
               icon={<PlusOutlined />}
-              onClick={() => navigate('/community/write')}
-              style={{ background: '#52c41a', borderColor: '#52c41a' }}
+              onClick={handleWriteClick}  // navigate 대신 함수 호출
             >
               글쓰기
             </Button>

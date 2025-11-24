@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Card, Row, Col, Button, Space, Typography, Tag, Badge, 
-  Input, Select, Empty, Statistic 
+  Input, Select, Empty, Statistic, message
 } from 'antd';
 import {
   ShoppingOutlined,
@@ -14,6 +14,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { marketplaceAPI } from '../services/api';
 import Layout from '../components/Layout';
+import { useAuth } from '../context/AuthContext';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
@@ -24,7 +25,17 @@ function Marketplace() {
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const { user } = useAuth();
   const navigate = useNavigate();
+
+  const handleWriteClick = () => {
+    if (!user) {
+      message.warning('로그인 후 거래글을 작성할 수 있습니다.');
+      navigate('/login');
+      return;
+    }
+    navigate('/marketplace/write');
+  };
 
   useEffect(() => {
     fetchItems();
@@ -83,12 +94,10 @@ function Marketplace() {
               <Option value="selling">판매중</Option>
               <Option value="sold">판매완료</Option>
             </Select>
-            <Button
-              type="primary"
-              size="large"
+            <Button 
+              type="primary" 
               icon={<PlusOutlined />}
-              onClick={() => navigate('/marketplace/write')}
-              style={{ background: '#52c41a', borderColor: '#52c41a' }}
+              onClick={handleWriteClick}  // 수정
             >
               상품 등록
             </Button>

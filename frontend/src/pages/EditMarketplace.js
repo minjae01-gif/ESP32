@@ -13,6 +13,7 @@ import {
 } from '@ant-design/icons';
 import { marketplaceAPI } from '../services/api';
 import Layout from '../components/Layout';
+import { useAuth } from '../context/AuthContext';
 
 const { TextArea } = Input;
 const { Title, Text } = Typography;
@@ -21,6 +22,7 @@ function EditMarketplace() {
   const { id } = useParams();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
+  const { user } = useAuth();  // 추가
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -49,6 +51,14 @@ function EditMarketplace() {
       setLoading(false);
     }
   };
+
+  // 로그인 체크 추가
+  useEffect(() => {
+    if (!user) {
+      message.warning('로그인이 필요한 서비스입니다.');
+      navigate('/login');
+    }
+  }, [user, navigate]);
 
   // 이미지 검증
   const validateImage = (file) => {

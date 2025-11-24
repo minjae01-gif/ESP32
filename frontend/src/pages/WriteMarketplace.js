@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Card, Input, InputNumber, Button, Space, message, 
@@ -13,11 +13,13 @@ import {
 } from '@ant-design/icons';
 import { marketplaceAPI } from '../services/api';
 import Layout from '../components/Layout';
+import { useAuth } from '../context/AuthContext';
 
 const { TextArea } = Input;
 const { Title, Text } = Typography;
 
 function WriteMarketplace() {
+  const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [price, setPrice] = useState('');
@@ -26,6 +28,14 @@ function WriteMarketplace() {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
+
+  // 로그인 체크
+  useEffect(() => {
+    if (!user) {
+      message.warning('로그인이 필요한 서비스입니다.');
+      navigate('/login');
+    }
+  }, [user, navigate]);
 
   // 이미지 검증
   const validateImage = (file) => {

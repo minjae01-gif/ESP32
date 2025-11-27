@@ -12,17 +12,23 @@ function Login() {
   const navigate = useNavigate();
 
   const onFinish = async (values) => {
-    setLoading(true);
-    try {
-      await login(values);
+  setLoading(true);
+  try {
+    const result = await login(values.email, values.password);
+    if (result.success) {
       message.success('로그인 성공!');
       navigate('/dashboard');
-    } catch (error) {
-      message.error('로그인에 실패했습니다. 이메일과 비밀번호를 확인하세요.');
-    } finally {
-      setLoading(false);
+    } else {
+      message.error(result.message || '로그인에 실패했습니다.');
     }
-  };
+  } catch (error) {
+    console.error(error);
+    message.error('로그인 중 알 수 없는 오류가 발생했습니다.');
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div style={styles.container}>

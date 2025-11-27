@@ -16,10 +16,9 @@ function MyPage() {
 
   const fetchMyInfo = async () => {
     try {
-      // 백엔드에서 DB 정보 가져오기
       const response = await authAPI.getProfile();
-      if (response.data.success) {
-        setUserInfo(response.data.user);
+      if (response.success) {  // 👈 response.data 제거!
+        setUserInfo(response.user);  // 👈 response.data.user → response.user
       }
     } catch (error) {
       console.error('내 정보 조회 실패:', error);
@@ -33,7 +32,7 @@ function MyPage() {
     return (
       <Layout>
         <div style={{ textAlign: 'center', padding: '100px' }}>
-          <Spin size="large" tip="정보를 불러오는 중..." />
+          <Spin size="large" />  {/* 👈 tip 제거 (경고 해결) */}
         </div>
       </Layout>
     );
@@ -59,7 +58,12 @@ function MyPage() {
 
           <Divider />
 
-          <Descriptions title="내 정보 상세" bordered column={1} labelStyle={{ width: '150px' }}>
+          <Descriptions 
+            title="내 정보 상세" 
+            bordered 
+            column={1} 
+            styles={{ label: { width: '150px' } }}  // 👈 labelStyle → styles 변경 (경고 해결)
+          >
             <Descriptions.Item label={<span><UserOutlined /> 사용자명</span>}>
               {userInfo?.username}
             </Descriptions.Item>

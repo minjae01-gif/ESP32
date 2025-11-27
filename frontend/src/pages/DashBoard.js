@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Typography, Tag, Space, Progress } from 'antd';
+import { Card, Row, Col, Typography, Tag, Space, Progress, Button, message } from 'antd';
 import { 
   ThunderboltOutlined, 
   CloudOutlined,
   BulbOutlined,
-  DropboxOutlined 
+  DropboxOutlined,
+  BulbFilled,
+  ExperimentOutlined
 } from '@ant-design/icons';
 import Layout from '../components/Layout';
 import { sensorAPI } from '../services/api';
@@ -174,6 +176,11 @@ function DashBoard() {
     lightLevel: 0,
   });
   const [loading, setLoading] = useState(true);
+  
+  // ⭐ 제어 상태 추가
+  const [ledStatus, setLedStatus] = useState(false);
+  const [motorStatus, setMotorStatus] = useState(false);
+  const [controlLoading, setControlLoading] = useState(false);
 
   useEffect(() => {
     fetchSensorData();
@@ -191,6 +198,44 @@ function DashBoard() {
       console.error('센서 데이터 조회 실패:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ⭐ LED 제어 함수
+  const handleLedControl = async () => {
+    setControlLoading(true);
+    try {
+      const command = ledStatus ? 'led_off' : 'led_on';
+      const response = await sensorAPI.sendCommand(command);
+      
+      if (response.data.success) {
+        setLedStatus(!ledStatus);
+        message.success(ledStatus ? '💡 LED 꺼짐' : '💡 LED 켜짐');
+      }
+    } catch (error) {
+      console.error('LED 제어 실패:', error);
+      message.error('LED 제어에 실패했습니다');
+    } finally {
+      setControlLoading(false);
+    }
+  };
+
+  // ⭐ 워터펌프 제어 함수
+  const handleMotorControl = async () => {
+    setControlLoading(true);
+    try {
+      const command = motorStatus ? 'motor_off' : 'motor_on';
+      const response = await sensorAPI.sendCommand(command);
+      
+      if (response.data.success) {
+        setMotorStatus(!motorStatus);
+        message.success(motorStatus ? '🚿 워터펌프 정지' : '🚿 워터펌프 작동');
+      }
+    } catch (error) {
+      console.error('워터펌프 제어 실패:', error);
+      message.error('워터펌프 제어에 실패했습니다');
+    } finally {
+      setControlLoading(false);
     }
   };
 
@@ -212,7 +257,7 @@ function DashBoard() {
     <Layout>
       <div style={styles.container}>
         <Title level={2}>🌱 실시간 센서 대시보드</Title>
-        <Text type="secondary">IoT 센서 데이터 모니터링</Text>
+        <Text type="secondary">IoT 센서 데이터 모니터링 & 제어</Text>
 
         <Row gutter={[24, 24]} style={{ marginTop: '32px' }}>
           {/* 토양습도 게이지 */}
@@ -269,6 +314,71 @@ function DashBoard() {
             </Card>
           </Col>
 
+          {/* ⭐ LED 제어 카드 */}
+          <Col xs={24} sm={12} md={6} lg={6}>
+            <Card style={styles.controlCard} hoverable>
+              <div style={styles.controlContent}>
+                <BulbFilled 
+                  style={{ 
+                    fontSize: '48px', 
+                    color: ledStatus ? '#faad14' : '#d9d9d9',
+                    transition: 'all 0.3s ease'
+                  }} 
+                />
+                <Title level={4} style={{ margin: '12px 0 8px' }}>LED 조명</Title>
+                <Tag color={ledStatus ? 'gold' : 'default'} style={{ marginBottom: '16px' }}>
+                  {ledStatus ? '켜짐' : '꺼짐'}
+                </Tag>
+                <Button
+                  type="primary"
+                  size="large"
+                  block
+                  loading={controlLoading}
+                  onClick={handleLedControl}
+                  style={{
+                    background: ledStatus ? '#faad14' : '#52c41a',
+                    borderColor: ledStatus ? '#faad14' : '#52c41a',
+                  }}
+                >
+                  {ledStatus ? 'LED 끄기' : 'LED 켜기'}
+                </Button>
+              </div>
+            </Card>
+          </Col>
+
+          {/* ⭐ 워터펌프 제어 카드 */}
+          <Col xs={24} sm={12} md={6} lg={6}>
+            <Card style={styles.controlCard} hoverable>
+              <div style={styles.controlContent}>
+                <ExperimentOutlined 
+                  style={{ 
+                    fontSize: '48px', 
+                    color: motorStatus ? '#1890ff' : '#d9d9d9',
+                    transition: 'all 0.3s ease'
+                  }} 
+                />
+                <Title level={4} style={{ margin: '12px 0 8px' }}>워터펌프</Title>
+                <Tag color={motorStatus ? 'blue' : 'default'} style={{ marginBottom: '16px' }}>
+                  {motorStatus ? '작동중' : '정지'}
+                </Tag>
+                <Button
+                  type="primary"
+                  size="large"
+                  block
+                  loading={controlLoading}
+                  onClick={handleMotorControl}
+                  danger={motorStatus}
+                  style={{
+                    background: motorStatus ? '#ff4d4f' : '#1890ff',
+                    borderColor: motorStatus ? '#ff4d4f' : '#1890ff',
+                  }}
+                >
+                  {motorStatus ? '펌프 정지' : '펌프 작동'}
+                </Button>
+              </div>
+            </Card>
+          </Col>
+
           {/* 상태 요약 */}
           <Col xs={24} sm={24} md={12} lg={12}>
             <Card style={styles.summaryCard}>
@@ -289,6 +399,16 @@ function DashBoard() {
                     ✅ 모든 센서 값이 정상 범위입니다!
                   </Tag>
                 )}
+                
+                {/* 제어 상태 표시 */}
+                <div style={{ marginTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <Tag icon={<BulbFilled />} color={ledStatus ? 'gold' : 'default'}>
+                    LED: {ledStatus ? 'ON' : 'OFF'}
+                  </Tag>
+                  <Tag icon={<ExperimentOutlined />} color={motorStatus ? 'blue' : 'default'}>
+                    워터펌프: {motorStatus ? 'ON' : 'OFF'}
+                  </Tag>
+                </div>
               </div>
             </Card>
           </Col>
@@ -353,6 +473,19 @@ const styles = {
   smallCardContent: {
     textAlign: 'center',
     padding: '24px',
+  },
+  // ⭐ 제어 카드 스타일 추가
+  controlCard: {
+    borderRadius: '16px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+    transition: 'all 0.3s ease',
+  },
+  controlContent: {
+    textAlign: 'center',
+    padding: '24px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
   },
   summaryCard: {
     borderRadius: '16px',

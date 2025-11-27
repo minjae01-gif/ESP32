@@ -26,9 +26,18 @@ api.interceptors.request.use(
 
 // 인증 API
 export const authAPI = {
-  register: (userData) => api.post('/api/auth/register', userData),
-  login: (credentials) => api.post('/api/auth/login', credentials),
-  getProfile: () => api.get('/api/auth/profile'),
+  register: async (userData) => {
+    const response = await api.post('/api/auth/register', userData);
+    return response.data;
+  },
+  login: async (credentials) => {
+    const response = await api.post('/api/auth/login', credentials);
+    return response.data;
+  },
+  getProfile: async () => {
+    const response = await api.get('/api/auth/profile');
+    return response.data;
+  },
 };
 
 // 게시글 API
@@ -80,6 +89,7 @@ export const commentAPI = {
 export const sensorAPI = {
   getLatestData: () => api.get('/api/sensor/latest'),
   getHistoryData: () => api.get('/api/sensor/history'),
+  sendCommand: (command) => api.post('/api/command', { command }), // ⭐ 제어 명령 전송
 };
 
 export default api;

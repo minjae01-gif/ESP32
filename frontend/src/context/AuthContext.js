@@ -13,8 +13,8 @@ export const AuthProvider = ({ children }) => {
       const token = localStorage.getItem('token');
       if (token) {
         try {
-          const response = await authAPI.verify();
-          setUser(response.data.user);
+          const response = await authAPI.getProfile();
+          setUser(response.user);  // 👈 response.data.user → response.user
         } catch (error) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const response = await authAPI.login({ email, password });
-      const { token, user } = response.data;
+      const { token, user } = response;  // 👈 response.data 제거!
       
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
@@ -47,8 +47,8 @@ export const AuthProvider = ({ children }) => {
   // 회원가입
   const signup = async (username, email, password) => {
     try {
-      const response = await authAPI.signup({ username, email, password });
-      return { success: true, message: response.data.message };
+      const response = await authAPI.register({ username, email, password });  // 👈 signup → register
+      return { success: true, message: response.message };  // 👈 response.data.message → response.message
     } catch (error) {
       return { 
         success: false, 

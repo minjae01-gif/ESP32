@@ -17,7 +17,7 @@ function Register() {
       message.success('회원가입이 완료되었습니다!');
       navigate('/login');
     } catch (error) {
-      message.error('회원가입에 실패했습니다.');
+      message.error('회원가입에 실패했습니다.(닉네임/이메일 중복)');
     } finally {
       setLoading(false);
     }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layout, Menu, Button } from 'antd';
+import { Layout, Menu, Button, Avatar  } from 'antd';
 import {
   HomeOutlined,
   DashboardOutlined,
@@ -7,6 +7,7 @@ import {
   ShoppingOutlined,
   LogoutOutlined,
   LoginOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -53,6 +54,12 @@ function Sidebar() {
       icon: <ShoppingOutlined />,
       label: '식물 거래',
       onClick: () => navigate('/marketplace'),
+    },
+    {
+      key: '/mypage',
+      icon: <UserOutlined />,
+      label: '마이페이지',
+      onClick: () => navigate('/mypage'),
     },
   ];
 

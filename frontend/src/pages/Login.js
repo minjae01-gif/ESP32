@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Form, Input, Button, Card, Typography, message, Space } from 'antd';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { Form, Input, Button, Card, Typography, message, Space , Alert } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
 
@@ -11,9 +11,14 @@ function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
+
+  const [searchParams] = useSearchParams();
+  const isAuthRequired = searchParams.get('auth') === 'required';
+
   const onFinish = async (values) => {
   setLoading(true);
   try {
+    // AuthContext의 login 함수 호출
     const result = await login(values.email, values.password);
     if (result.success) {
       message.success('로그인 성공!');
@@ -36,6 +41,17 @@ function Login() {
         <Title level={2} style={{ textAlign: 'center', marginBottom: '30px' }}>
           🌱 로그인
         </Title>
+
+                {/* 🔥 핵심: 주소 뒤에 auth=required가 있으면 고정된 경고 박스를 보여줌 */}
+        {isAuthRequired && (
+          <Alert
+            message="로그인이 필요한 서비스입니다."
+            description="계속하려면 먼저 로그인해주세요."
+            type="warning"
+            showIcon
+            style={{ marginBottom: '24px' }}
+          />
+        )}
 
         <Form
           name="login"

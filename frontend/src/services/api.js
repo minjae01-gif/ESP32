@@ -26,16 +26,24 @@ api.interceptors.request.use(
 
 // 인증 API
 export const authAPI = {
+  // 회원가입
   register: async (userData) => {
     const response = await api.post('/api/auth/register', userData);
     return response.data;
   },
+  // 로그인
   login: async (credentials) => {
     const response = await api.post('/api/auth/login', credentials);
     return response.data;
   },
+  // 내 정보 조회
   getProfile: async () => {
     const response = await api.get('/api/auth/profile');
+    return response.data;
+  },
+  // 비밀번호 변경
+  changePassword: async (data) => {
+    const response = await api.put('/api/auth/change-password', data);
     return response.data;
   },
 };

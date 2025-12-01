@@ -1,88 +1,78 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Typography, Tag, Space, Progress, Button, message } from 'antd';
+import { Card, Row, Col, Typography, Tag, Space, Button, message, InputNumber, Switch } from 'antd';
 import { 
   ThunderboltOutlined, 
   CloudOutlined,
   BulbOutlined,
   DropboxOutlined,
   BulbFilled,
-  ExperimentOutlined
+  ExperimentOutlined,
+  SettingOutlined
 } from '@ant-design/icons';
 import Layout from '../components/Layout';
 import { sensorAPI } from '../services/api';
 
 const { Title, Text } = Typography;
 
-// 커스텀 게이지 컴포넌트
+/* =========================================================
+   ⭐ 커스텀 반원형 게이지
+========================================================= */
 const CustomGauge = ({ value, max, title, icon, unit, levels }) => {
   const percentage = (value / max) * 100;
-  
-  // 현재 레벨 찾기
-  const currentLevel = levels.find(level => 
+
+  const currentLevel = levels.find(level =>
     percentage >= level.min && percentage <= level.max
   );
 
   return (
-    <div style={styles.gaugeContainer}>
-      <div style={styles.gaugeHeader}>
+    <div style={{ width: "100%" }}>
+      <div style={{ textAlign: "center", marginBottom: "16px" }}>
         {icon}
-        <Title level={4} style={{ margin: '8px 0' }}>{title}</Title>
+        <Title level={4} style={{ margin: "8px 0" }}>{title}</Title>
       </div>
 
-      {/* 반원형 게이지 */}
-      <div style={styles.semicircleWrapper}>
+      <div style={{ display: "flex", justifyContent: "center" }}>
         <svg width="300" height="180" viewBox="0 0 300 180">
-          {/* 배경 아크들 (3단계) */}
+
+          {/* 배경 단계 */}
           {levels.map((level, index) => {
             const startAngle = 180 + (level.min * 1.8);
             const endAngle = 180 + (level.max * 1.8);
             const radius = 120;
-            const cx = 150;
-            const cy = 150;
+            const cx = 150, cy = 150;
 
-            const startRad = (startAngle * Math.PI) / 180;
-            const endRad = (endAngle * Math.PI) / 180;
-
-            const x1 = cx + radius * Math.cos(startRad);
-            const y1 = cy + radius * Math.sin(startRad);
-            const x2 = cx + radius * Math.cos(endRad);
-            const y2 = cy + radius * Math.sin(endRad);
-
-            const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+            const x1 = cx + radius * Math.cos(startAngle * Math.PI / 180);
+            const y1 = cy + radius * Math.sin(startAngle * Math.PI / 180);
+            const x2 = cx + radius * Math.cos(endAngle * Math.PI / 180);
+            const y2 = cy + radius * Math.sin(endAngle * Math.PI / 180);
 
             return (
               <path
                 key={index}
-                d={`M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`}
+                d={`M ${x1} ${y1} A 120 120 0 0 1 ${x2} ${y2}`}
                 fill="none"
                 stroke={level.color}
                 strokeWidth="25"
-                strokeLinecap="round"
                 opacity="0.3"
+                strokeLinecap="round"
               />
             );
           })}
 
-          {/* 활성 아크 (현재 값) */}
+          {/* 현재 값 아크 */}
           {(() => {
-            const angle = 180 + (percentage * 1.8);
+            const angle = 180 + percentage * 1.8;
+            const cx = 150, cy = 150;
             const radius = 120;
-            const cx = 150;
-            const cy = 150;
 
-            const startRad = (180 * Math.PI) / 180;
-            const endRad = (angle * Math.PI) / 180;
-
-            const x1 = cx + radius * Math.cos(startRad);
-            const y1 = cy + radius * Math.sin(startRad);
-            const x2 = cx + radius * Math.cos(endRad);
-            const y2 = cy + radius * Math.sin(endRad);
-
-            const largeArc = angle - 180 > 180 ? 1 : 0;
+            const x1 = cx - radius;
+            const y1 = cy;
+            const x2 = cx + radius * Math.cos(angle * Math.PI / 180);
+            const y2 = cy + radius * Math.sin(angle * Math.PI / 180);
 
             return (
               <path
-                d={`M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`}
+                d={`M ${x1} ${y1} A 120 120 0 0 1 ${x2} ${y2}`}
                 fill="none"
                 stroke={currentLevel?.color || '#52c41a'}
                 strokeWidth="25"
@@ -93,23 +83,22 @@ const CustomGauge = ({ value, max, title, icon, unit, levels }) => {
 
           {/* 바늘 */}
           {(() => {
-            const angle = 180 + (percentage * 1.8);
+            const angle = 180 + percentage * 1.8;
+            const cx = 150, cy = 150;
             const needleLength = 100;
-            const cx = 150;
-            const cy = 150;
-            const rad = (angle * Math.PI) / 180;
-            const x = cx + needleLength * Math.cos(rad);
-            const y = cy + needleLength * Math.sin(rad);
+
+            const x = cx + needleLength * Math.cos(angle * Math.PI / 180);
+            const y = cy + needleLength * Math.sin(angle * Math.PI / 180);
 
             return (
               <g>
-                <circle cx={cx} cy={cy} r="8" fill="#595959" />
+                <circle cx={cx} cy={cy} r="8" fill="#555" />
                 <line
                   x1={cx}
                   y1={cy}
                   x2={x}
                   y2={y}
-                  stroke="#595959"
+                  stroke="#555"
                   strokeWidth="3"
                   strokeLinecap="round"
                 />
@@ -117,57 +106,29 @@ const CustomGauge = ({ value, max, title, icon, unit, levels }) => {
             );
           })()}
 
-          {/* 숫자 표시 */}
-          <text
-            x="150"
-            y="120"
-            textAnchor="middle"
-            style={{
-              fontSize: '42px',
-              fontWeight: 'bold',
-              fill: currentLevel?.color || '#262626',
-            }}
-          >
+          {/* 숫자 */}
+          <text x="150" y="120" textAnchor="middle" style={{ fontSize: 42, fontWeight: "bold", fill: currentLevel?.color }}>
             {value}
           </text>
-          <text
-            x="150"
-            y="170"
-            textAnchor="middle"
-            style={{
-              fontSize: '16px',
-              fill: '#8c8c8c',
-            }}
-          >
+          <text x="150" y="165" textAnchor="middle" style={{ fontSize: 16, fill: "#888" }}>
             {unit}
           </text>
         </svg>
       </div>
 
-      {/* 상태 태그 */}
-      <div style={styles.statusContainer}>
-        <Tag color={currentLevel?.color} style={styles.statusTag}>
+      {/* 상태 Tag */}
+      <div style={{ textAlign: "center", marginTop: 16 }}>
+        <Tag color={currentLevel?.color} style={{ fontSize: 16, padding: "8px 20px" }}>
           {currentLevel?.label}
         </Tag>
-      </div>
-
-      {/* 범례 */}
-      <div style={styles.legendContainer}>
-        <Space size="small" wrap>
-          {levels.map((level, index) => (
-            <div key={index} style={styles.legend}>
-              <div style={{ ...styles.legendDot, background: level.color }}></div>
-              <Text type="secondary" style={{ fontSize: '12px' }}>
-                {level.label} ({level.range || `${level.min}-${level.max}`})
-              </Text>
-            </div>
-          ))}
-        </Space>
       </div>
     </div>
   );
 };
 
+/* =========================================================
+   ⭐ Dashboard 메인 페이지
+========================================================= */
 function DashBoard() {
   const [sensorData, setSensorData] = useState({
     temperature: 0,
@@ -175,335 +136,309 @@ function DashBoard() {
     soilMoisture: 0,
     lightLevel: 0,
   });
+
   const [loading, setLoading] = useState(true);
-  
-  // ⭐ 제어 상태 추가
   const [ledStatus, setLedStatus] = useState(false);
   const [motorStatus, setMotorStatus] = useState(false);
   const [controlLoading, setControlLoading] = useState(false);
 
+  // ⭐ 새 설정 상태
+  const [settings, setSettings] = useState({
+    ledOffHour: 22,
+    wateringIntervalHours: 6,
+    autoWaterEnabled: true
+  });
+
+  /* ---------------------- 데이터 가져오기 ---------------------- */
   useEffect(() => {
     fetchSensorData();
-    const interval = setInterval(fetchSensorData, 30000);
+    fetchSettings();
+
+    const interval = setInterval(fetchSensorData, 15000);
     return () => clearInterval(interval);
   }, []);
 
   const fetchSensorData = async () => {
     try {
-      const response = await sensorAPI.getLatestData();
-      if (response.data.success && response.data.data) {
-        setSensorData(response.data.data);
-      }
-    } catch (error) {
-      console.error('센서 데이터 조회 실패:', error);
+      const res = await sensorAPI.getLatestData();
+      if (res.data.success) setSensorData(res.data.data);
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
   };
 
-  // ⭐ LED 제어 함수
+  const fetchSettings = async () => {
+    try {
+      const res = await sensorAPI.getSettings();
+      if (res.data.success) setSettings(res.data.settings);
+    } catch (e) {
+      console.error("⚠ 설정 불러오기 실패", e);
+    }
+  };
+
+  /* ---------------------- LED 제어 ---------------------- */
   const handleLedControl = async () => {
     setControlLoading(true);
     try {
-      const command = ledStatus ? 'led_off' : 'led_on';
-      const response = await sensorAPI.sendCommand(command);
-      
-      if (response.data.success) {
+      const command = ledStatus ? "led_off" : "led_on";
+      const res = await sensorAPI.sendCommand(command);
+
+      if (res.data.success) {
         setLedStatus(!ledStatus);
-        message.success(ledStatus ? '💡 LED 꺼짐' : '💡 LED 켜짐');
+        message.success(ledStatus ? "LED 꺼짐" : "LED 켜짐");
       }
-    } catch (error) {
-      console.error('LED 제어 실패:', error);
-      message.error('LED 제어에 실패했습니다');
+    } catch {
+      message.error("LED 제어 실패");
     } finally {
       setControlLoading(false);
     }
   };
 
-  // ⭐ 워터펌프 제어 함수
+  /* ---------------------- 펌프 제어 ---------------------- */
   const handleMotorControl = async () => {
     setControlLoading(true);
+
     try {
-      const command = motorStatus ? 'motor_off' : 'motor_on';
-      const response = await sensorAPI.sendCommand(command);
-      
-      if (response.data.success) {
+      const command = motorStatus ? "motor_off" : "motor_on";
+      const res = await sensorAPI.sendCommand(command);
+
+      if (res.data.success) {
         setMotorStatus(!motorStatus);
-        message.success(motorStatus ? '🚿 워터펌프 정지' : '🚿 워터펌프 작동');
+        message.success(motorStatus ? "펌프 OFF" : "펌프 ON");
       }
-    } catch (error) {
-      console.error('워터펌프 제어 실패:', error);
-      message.error('워터펌프 제어에 실패했습니다');
+    } catch {
+      message.error("펌프 제어 실패");
     } finally {
       setControlLoading(false);
     }
   };
 
-  // 토양습도 레벨 정의
+  /* ---------------------- 설정 업데이트 ---------------------- */
+  const updateSettings = async () => {
+    try {
+      const res = await sensorAPI.updateSettings(settings);
+      if (res.data.success) {
+        message.success("설정이 저장되었습니다!");
+      }
+    } catch {
+      message.error("설정 저장 실패");
+    }
+  };
+
+  /* =========================================================
+      게이지 단계 색상 설정
+  ========================================================= */
   const soilLevels = [
-    { min: 0, max: 29, color: '#ff4d4f', label: '건조함' },
-    { min: 30, max: 59, color: '#faad14', label: '적당함' },
-    { min: 60, max: 100, color: '#52c41a', label: '습함' },
+    { min: 0, max: 29, color: "#ff4d4f", label: "건조함" },
+    { min: 30, max: 59, color: "#faad14", label: "적당함" },
+    { min: 60, max: 100, color: "#52c41a", label: "습함" },
   ];
 
-  // 조도 레벨 정의 (0-10을 0-100%로 변환)
   const lightLevels = [
-    { min: 0, max: 20, color: '#8c8c8c', label: '어두움', range: '0-2' },
-    { min: 30, max: 60, color: '#faad14', label: '적당함', range: '3-6' },
-    { min: 70, max: 100, color: '#52c41a', label: '밝음', range: '7-10' },
+    { min: 0, max: 20, color: "#8c8c8c", label: "어두움", range: "0~2" },
+    { min: 30, max: 60, color: "#faad14", label: "적당함", range: "3~6" },
+    { min: 70, max: 100, color: "#52c41a", label: "밝음", range: "7~10" },
   ];
 
+  /* =========================================================
+      UI 렌더링
+  ========================================================= */
   return (
     <Layout>
-      <div style={styles.container}>
+      <div style={{ padding: 24 }}>
         <Title level={2}>🌱 실시간 센서 대시보드</Title>
-        <Text type="secondary">IoT 센서 데이터 모니터링 & 제어</Text>
 
-        <Row gutter={[24, 24]} style={{ marginTop: '32px' }}>
-          {/* 토양습도 게이지 */}
-          <Col xs={24} sm={24} md={12} lg={12}>
-            <Card loading={loading} style={styles.gaugeCard} hoverable>
+        <Row gutter={[24, 24]} style={{ marginTop: 32 }}>
+
+          {/* ⭐ 토양습도 게이지 */}
+          <Col xs={24} md={12}>
+            <Card loading={loading} style={{ borderRadius: 16 }} hoverable>
               <CustomGauge
                 value={sensorData.soilMoisture}
                 max={100}
                 title="토양습도"
-                icon={<DropboxOutlined style={{ fontSize: '24px', color: '#52c41a' }} />}
+                icon={<DropboxOutlined style={{ fontSize: 24, color: "#52c41a" }} />}
                 unit="%"
                 levels={soilLevels}
               />
             </Card>
           </Col>
 
-          {/* 조도 게이지 */}
-          <Col xs={24} sm={24} md={12} lg={12}>
-            <Card loading={loading} style={styles.gaugeCard} hoverable>
+          {/* ⭐ 조도 게이지 */}
+          <Col xs={24} md={12}>
+            <Card loading={loading} style={{ borderRadius: 16 }} hoverable>
               <CustomGauge
                 value={sensorData.lightLevel}
                 max={10}
                 title="조도"
-                icon={<BulbOutlined style={{ fontSize: '24px', color: '#faad14' }} />}
+                icon={<BulbOutlined style={{ fontSize: 24, color: "#faad14" }} />}
                 unit="/ 10"
                 levels={lightLevels}
               />
             </Card>
           </Col>
 
-          {/* 온도 */}
-          <Col xs={24} sm={12} md={6} lg={6}>
-            <Card loading={loading} style={styles.smallCard} hoverable>
-              <div style={styles.smallCardContent}>
-                <ThunderboltOutlined style={{ fontSize: '32px', color: '#ff4d4f' }} />
-                <Title level={3} style={{ margin: '8px 0', color: '#ff4d4f' }}>
-                  {sensorData.temperature}°C
-                </Title>
+          {/* ⭐ 온도 */}
+          <Col xs={12} md={6}>
+            <Card loading={loading} style={{ borderRadius: 16 }} hoverable>
+              <div style={{ textAlign: "center", padding: 20 }}>
+                <ThunderboltOutlined style={{ fontSize: 32, color: "#ff4d4f" }} />
+                <Title level={3}>{sensorData.temperature}°C</Title>
                 <Text type="secondary">온도</Text>
               </div>
             </Card>
           </Col>
 
-          {/* 습도 */}
-          <Col xs={24} sm={12} md={6} lg={6}>
-            <Card loading={loading} style={styles.smallCard} hoverable>
-              <div style={styles.smallCardContent}>
-                <CloudOutlined style={{ fontSize: '32px', color: '#1890ff' }} />
-                <Title level={3} style={{ margin: '8px 0', color: '#1890ff' }}>
-                  {sensorData.humidity}%
-                </Title>
+          {/* ⭐ 습도 */}
+          <Col xs={12} md={6}>
+            <Card loading={loading} style={{ borderRadius: 16 }} hoverable>
+              <div style={{ textAlign: "center", padding: 20 }}>
+                <CloudOutlined style={{ fontSize: 32, color: "#1890ff" }} />
+                <Title level={3}>{sensorData.humidity}%</Title>
                 <Text type="secondary">습도</Text>
               </div>
             </Card>
           </Col>
 
-          {/* ⭐ LED 제어 카드 */}
-          <Col xs={24} sm={12} md={6} lg={6}>
-            <Card style={styles.controlCard} hoverable>
-              <div style={styles.controlContent}>
-                <BulbFilled 
-                  style={{ 
-                    fontSize: '48px', 
-                    color: ledStatus ? '#faad14' : '#d9d9d9',
-                    transition: 'all 0.3s ease'
-                  }} 
-                />
-                <Title level={4} style={{ margin: '12px 0 8px' }}>LED 조명</Title>
-                <Tag color={ledStatus ? 'gold' : 'default'} style={{ marginBottom: '16px' }}>
-                  {ledStatus ? '켜짐' : '꺼짐'}
-                </Tag>
+          {/* ⭐ LED 제어 */}
+          <Col xs={12} md={6}>
+            <Card style={{ borderRadius: 16 }} hoverable>
+              <div style={{ textAlign: "center", padding: 24 }}>
+                <BulbFilled style={{ fontSize: 48, color: ledStatus ? "#faad14" : "#ccc" }} />
+                <Title level={4}>LED 조명</Title>
+
+                <Tag color={ledStatus ? "gold" : "default"}>{ledStatus ? "켜짐" : "꺼짐"}</Tag>
+
                 <Button
                   type="primary"
-                  size="large"
                   block
                   loading={controlLoading}
                   onClick={handleLedControl}
-                  style={{
-                    background: ledStatus ? '#faad14' : '#52c41a',
-                    borderColor: ledStatus ? '#faad14' : '#52c41a',
-                  }}
+                  style={{ marginTop: 12 }}
                 >
-                  {ledStatus ? 'LED 끄기' : 'LED 켜기'}
+                  {ledStatus ? "LED 끄기" : "LED 켜기"}
                 </Button>
               </div>
             </Card>
           </Col>
 
-          {/* ⭐ 워터펌프 제어 카드 */}
-          <Col xs={24} sm={12} md={6} lg={6}>
-            <Card style={styles.controlCard} hoverable>
-              <div style={styles.controlContent}>
-                <ExperimentOutlined 
-                  style={{ 
-                    fontSize: '48px', 
-                    color: motorStatus ? '#1890ff' : '#d9d9d9',
-                    transition: 'all 0.3s ease'
-                  }} 
-                />
-                <Title level={4} style={{ margin: '12px 0 8px' }}>워터펌프</Title>
-                <Tag color={motorStatus ? 'blue' : 'default'} style={{ marginBottom: '16px' }}>
-                  {motorStatus ? '작동중' : '정지'}
-                </Tag>
+          {/* ⭐ 펌프 제어 */}
+          <Col xs={12} md={6}>
+            <Card style={{ borderRadius: 16 }} hoverable>
+              <div style={{ textAlign: "center", padding: 24 }}>
+                <ExperimentOutlined style={{ fontSize: 48, color: motorStatus ? "#1890ff" : "#ccc" }} />
+                <Title level={4}>워터펌프</Title>
+
+                <Tag color={motorStatus ? "blue" : "default"}>{motorStatus ? "작동중" : "정지"}</Tag>
+
                 <Button
                   type="primary"
-                  size="large"
-                  block
-                  loading={controlLoading}
-                  onClick={handleMotorControl}
                   danger={motorStatus}
-                  style={{
-                    background: motorStatus ? '#ff4d4f' : '#1890ff',
-                    borderColor: motorStatus ? '#ff4d4f' : '#1890ff',
-                  }}
+                  block
+                  onClick={handleMotorControl}
+                  loading={controlLoading}
+                  style={{ marginTop: 12 }}
                 >
-                  {motorStatus ? '펌프 정지' : '펌프 작동'}
+                  {motorStatus ? "펌프 정지" : "펌프 작동"}
                 </Button>
               </div>
             </Card>
           </Col>
 
-          {/* 상태 요약 */}
-          <Col xs={24} sm={24} md={12} lg={12}>
-            <Card style={styles.summaryCard}>
-              <Title level={4}>💡 현재 상태 요약</Title>
-              <div style={styles.summaryContent}>
+          {/* ⭐ 자동 설정 패널 */}
+          <Col xs={24} md={12}>
+            <Card style={{ borderRadius: 16 }} hoverable>
+              <Title level={4}>
+                <SettingOutlined /> 자동 제어 설정
+              </Title>
+
+              <Space direction="vertical" style={{ width: "100%", marginTop: 16 }}>
+
+                {/* LED OFF 시간 */}
+                <div>
+                  <Text strong>LED 자동 꺼짐 시간 (24h)</Text>
+                  <InputNumber
+                    min={0}
+                    max={23}
+                    value={settings.ledOffHour}
+                    onChange={(v) => setSettings({ ...settings, ledOffHour: v })}
+                    style={{ width: "100%", marginTop: 8 }}
+                  />
+                </div>
+
+                {/* 물주기 간격 */}
+                <div>
+                  <Text strong>자동 물주기 간격 (시간)</Text>
+                  <InputNumber
+                    min={1}
+                    max={48}
+                    value={settings.wateringIntervalHours}
+                    onChange={(v) => setSettings({ ...settings, wateringIntervalHours: v })}
+                    style={{ width: "100%", marginTop: 8 }}
+                  />
+                </div>
+
+                {/* 자동 물주기 on/off */}
+                <div>
+                  <Text strong>자동 물주기 활성화</Text>
+                  <br />
+                  <Switch
+                    checked={settings.autoWaterEnabled}
+                    onChange={(v) => setSettings({ ...settings, autoWaterEnabled: v })}
+                    style={{ marginTop: 8 }}
+                  />
+                </div>
+
+                <Button type="primary" block style={{ marginTop: 16 }} onClick={updateSettings}>
+                  설정 저장하기
+                </Button>
+
+              </Space>
+            </Card>
+          </Col>
+
+          {/* ⭐ 상태 요약 */}
+          <Col xs={24} md={12}>
+            <Card style={{ borderRadius: 16 }}>
+              <Title level={4}>상태 요약</Title>
+
+              <div style={{ marginTop: 16 }}>
                 {sensorData.soilMoisture < 30 && (
-                  <Tag color="red" style={styles.alertTag}>
-                    ⚠️ 토양이 건조합니다. 물을 주세요!
+                  <Tag color="red" style={{ marginBottom: 8 }}>
+                    ⚠️ 토양 건조: 물이 필요합니다!
                   </Tag>
                 )}
+
                 {sensorData.lightLevel < 3 && (
-                  <Tag color="orange" style={styles.alertTag}>
-                    💡 조도가 낮습니다. 밝은 곳으로 이동하세요!
+                  <Tag color="orange" style={{ marginBottom: 8 }}>
+                    💡 조도가 낮음: 더 밝은 곳이 필요합니다
                   </Tag>
                 )}
+
                 {sensorData.soilMoisture >= 30 && sensorData.lightLevel >= 3 && (
-                  <Tag color="green" style={styles.alertTag}>
-                    ✅ 모든 센서 값이 정상 범위입니다!
+                  <Tag color="green" style={{ marginBottom: 8 }}>
+                    ✅ 모든 상태 정상!
                   </Tag>
                 )}
-                
-                {/* 제어 상태 표시 */}
-                <div style={{ marginTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <Tag icon={<BulbFilled />} color={ledStatus ? 'gold' : 'default'}>
-                    LED: {ledStatus ? 'ON' : 'OFF'}
+
+                <div style={{ marginTop: 16 }}>
+                  <Tag color={ledStatus ? "gold" : "default"}>
+                    LED: {ledStatus ? "ON" : "OFF"}
                   </Tag>
-                  <Tag icon={<ExperimentOutlined />} color={motorStatus ? 'blue' : 'default'}>
-                    워터펌프: {motorStatus ? 'ON' : 'OFF'}
+                  <Tag color={motorStatus ? "blue" : "default"}>
+                    펌프: {motorStatus ? "ON" : "OFF"}
                   </Tag>
                 </div>
               </div>
             </Card>
           </Col>
+
         </Row>
       </div>
     </Layout>
   );
 }
-
-const styles = {
-  container: {
-    padding: '24px',
-  },
-  gaugeCard: {
-    borderRadius: '16px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-    transition: 'all 0.3s ease',
-    padding: '24px',
-  },
-  gaugeContainer: {
-    width: '100%',
-  },
-  gaugeHeader: {
-    textAlign: 'center',
-    marginBottom: '16px',
-  },
-  semicircleWrapper: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statusContainer: {
-    textAlign: 'center',
-    marginTop: '16px',
-  },
-  statusTag: {
-    fontSize: '16px',
-    padding: '8px 24px',
-    borderRadius: '20px',
-    fontWeight: 'bold',
-  },
-  legendContainer: {
-    marginTop: '16px',
-    display: 'flex',
-    justifyContent: 'center',
-  },
-  legend: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-  },
-  legendDot: {
-    width: '12px',
-    height: '12px',
-    borderRadius: '50%',
-  },
-  smallCard: {
-    borderRadius: '16px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-    transition: 'all 0.3s ease',
-  },
-  smallCardContent: {
-    textAlign: 'center',
-    padding: '24px',
-  },
-  // ⭐ 제어 카드 스타일 추가
-  controlCard: {
-    borderRadius: '16px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-    transition: 'all 0.3s ease',
-  },
-  controlContent: {
-    textAlign: 'center',
-    padding: '24px',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-  },
-  summaryCard: {
-    borderRadius: '16px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-    padding: '12px',
-  },
-  summaryContent: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-    marginTop: '16px',
-  },
-  alertTag: {
-    fontSize: '14px',
-    padding: '12px 20px',
-    borderRadius: '8px',
-    display: 'inline-block',
-  },
-};
 
 export default DashBoard;

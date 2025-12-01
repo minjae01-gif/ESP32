@@ -1,14 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Avatar, Typography, Descriptions, Spin, message, Divider, Tag } from 'antd';
-import { UserOutlined, MailOutlined, ClockCircleOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
+import { 
+  Card, Avatar, Typography, Descriptions, Spin, message, 
+  Divider, Tag, Button, Modal, Form, Input 
+} from 'antd';
+import { 
+  UserOutlined, MailOutlined, ClockCircleOutlined, 
+  SafetyCertificateOutlined, LockOutlined 
+} from '@ant-design/icons';
 import { authAPI } from '../services/api';
 import Layout from '../components/Layout';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
 function MyPage() {
   const [userInfo, setUserInfo] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  // 모달(팝업) 관련 상태
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [changeLoading, setChangeLoading] = useState(false);
+  const [form] = Form.useForm();
 
   useEffect(() => {
     fetchMyInfo();
@@ -17,8 +28,8 @@ function MyPage() {
   const fetchMyInfo = async () => {
     try {
       const response = await authAPI.getProfile();
-      if (response.success) {  // 👈 response.data 제거!
-        setUserInfo(response.user);  // 👈 response.data.user → response.user
+      if (response.success) {
+        setUserInfo(response.user);
       }
     } catch (error) {
       console.error('내 정보 조회 실패:', error);
@@ -28,11 +39,34 @@ function MyPage() {
     }
   };
 
+  // 비밀번호 변경 요청 함수
+  const handleChangePassword = async (values) => {
+    setChangeLoading(true);
+    try {
+      const response = await authAPI.changePassword({
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword
+      });
+
+      if (response.success) {
+        message.success('비밀번호가 성공적으로 변경되었습니다.');
+        setIsModalOpen(false); // 성공하면 모달 닫기
+        form.resetFields();    // 입력창 초기화
+      } else {
+        message.error(response.message || '비밀번호 변경 실패');
+      }
+    } catch (error) {
+      message.error(error.response?.data?.message || '비밀번호 변경 중 오류가 발생했습니다.');
+    } finally {
+      setChangeLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
         <div style={{ textAlign: 'center', padding: '100px' }}>
-          <Spin size="large" />  {/* 👈 tip 제거 (경고 해결) */}
+          <Spin size="large" />
         </div>
       </Layout>
     );
@@ -62,7 +96,7 @@ function MyPage() {
             title="내 정보 상세" 
             bordered 
             column={1} 
-            styles={{ label: { width: '150px' } }}  // 👈 labelStyle → styles 변경 (경고 해결)
+            styles={{ label: { width: '150px' } }}
           >
             <Descriptions.Item label={<span><UserOutlined /> 사용자명</span>}>
               {userInfo?.username}
@@ -78,7 +112,86 @@ function MyPage() {
               }) : '-'}
             </Descriptions.Item>
           </Descriptions>
+
+          {/* 🔥 비밀번호 변경 버튼 */}
+          <div style={{ marginTop: '30px', textAlign: 'center' }}>
+            <Button 
+              icon={<LockOutlined />} 
+              size="large"
+              onClick={() => setIsModalOpen(true)}
+            >
+              비밀번호 변경
+            </Button>
+          </div>
         </Card>
+
+        {/* 🔥 비밀번호 변경 모달 */}
+        <Modal
+          title="비밀번호 변경"
+          open={isModalOpen}
+          onCancel={() => {
+            setIsModalOpen(false);
+            form.resetFields();
+          }}
+          footer={null} // 기본 버튼 제거하고 폼 내부 버튼 사용
+        >
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleChangePassword}
+            style={{ marginTop: '20px' }}
+          >
+            <Form.Item
+              name="currentPassword"
+              label="현재 비밀번호"
+              rules={[{ required: true, message: '현재 비밀번호를 입력해주세요.' }]}
+            >
+              <Input.Password placeholder="사용 중인 비밀번호 입력" />
+            </Form.Item>
+
+            <Form.Item
+              name="newPassword"
+              label="새 비밀번호"
+              rules={[
+                { required: true, message: '새 비밀번호를 입력해주세요.' },
+                { min: 6, message: '최소 6자 이상 입력해주세요.' }
+              ]}
+            >
+              <Input.Password placeholder="변경할 비밀번호 (6자 이상)" />
+            </Form.Item>
+
+            <Form.Item
+              name="confirmPassword"
+              label="새 비밀번호 확인"
+              dependencies={['newPassword']}
+              rules={[
+                { required: true, message: '비밀번호를 다시 입력해주세요.' },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    if (!value || getFieldValue('newPassword') === value) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(new Error('비밀번호가 일치하지 않습니다.'));
+                  },
+                }),
+              ]}
+            >
+              <Input.Password placeholder="새 비밀번호 다시 입력" />
+            </Form.Item>
+
+            <Form.Item>
+              <Button 
+                type="primary" 
+                htmlType="submit" 
+                block 
+                loading={changeLoading}
+                style={{ background: '#52c41a', borderColor: '#52c41a' }}
+              >
+                변경하기
+              </Button>
+            </Form.Item>
+          </Form>
+        </Modal>
       </div>
     </Layout>
   );

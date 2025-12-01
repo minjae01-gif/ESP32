@@ -2,6 +2,8 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { App as AntdApp } from 'antd';
 import { AuthProvider } from './context/AuthContext';
+import PrivateRoute from './components/PrivateRoute';
+
 
 // 페이지 import
 import Login from './pages/Login';
@@ -32,17 +34,18 @@ function AppContent() {
           <Route path="/dashboard" element={<DashBoard />} />
           {/* 커뮤니티 */}
           <Route path="/community" element={<Community />} />
-          <Route path="/community/write" element={<WritePost />} />
+          <Route path="/community/write" element={<PrivateRoute><WritePost /></PrivateRoute>} />
           <Route path="/community/:id" element={<PostDetail />} />
           {/* 거래 */}
           <Route path="/marketplace" element={<Marketplace />} />
-          <Route path="/marketplace/write" element={<WriteMarketplace />} />
-          <Route path="/marketplace/edit/:id" element={<EditMarketplace />} />
-          <Route path="/marketplace/:id" element={<MarketplaceDetail />} />
+          <Route path="/marketplace/write" element={<PrivateRoute><WriteMarketplace /></PrivateRoute>} />
+          <Route path="/marketplace/edit/:id" element={<PrivateRoute><EditMarketplace /></PrivateRoute>} />
+          <Route path="/marketplace/:id" element={<PrivateRoute><MarketplaceDetail /></PrivateRoute>} />
           {/* 마이페이지 */}
-          <Route path="/mypage" element={<MyPage />} />
+          <Route path="/mypage" element={<PrivateRoute><MyPage /></PrivateRoute>} />
           {/* 404 - 홈으로 리다이렉트 */}
           <Route path="*" element={<Navigate to="/" />} />
+          
         </Routes>
       </Router>
     </AuthProvider>

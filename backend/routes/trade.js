@@ -33,7 +33,8 @@ router.post('/request', verifyToken, async (req, res) => {
       [itemId, buyerId]
     );
     if (existing.length > 0) {
-      return res.status(409).json({ success: false, message: '이미 요청을 보낸 상품입니다.' });
+      console.log("⚠️ 중복 요청 감지됨 -> 409 전송"); // 서버 콘솔 로그 추가
+      return res.status(409).json({ success: false, message: '이미 구매 요청 했습니다.' });
     }
 
     // DB 저장

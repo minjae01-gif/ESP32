@@ -4,8 +4,11 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
+// 외부 설정 파일 로드
+const settings = JSON.parse(fs.readFileSync('./config/settings.json', 'utf-8'));
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -16,6 +19,15 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// =======================================
+// ⚙️ 사용자 설정 (LED/물주기 프리셋)
+// =======================================
+let userSettings = {
+  ledOffHour: settings.ledOffHour || 22,
+  wateringIntervalHours: settings.wateringIntervalHours || 6,
+  autoWaterEnabled: settings.autoWaterEnabled ?? true
+};
 
 // =======================================
 // 📌 라우트 import
@@ -47,7 +59,7 @@ app.post('/sensor', (req, res) => {
     temperature: 0,
     humidity: 0,
     soilMoisture: soil,
-    lightLevel: Math.round(light / 10),  // 0~100 → 0~10
+    lightLevel: Math.round(light / 10),
     timestamp: new Date()
   };
 
@@ -76,7 +88,7 @@ let command = "";
 // ESP32가 명령을 가져감
 app.get('/command', (req, res) => {
   res.send(command);
-  command = ""; // 가져간 후 초기화
+  command = ""; 
 });
 
 // 프론트엔드가 명령 전달
@@ -104,6 +116,47 @@ db.query('SELECT 1')
   .catch(err => console.error('❌ MySQL 연결 실패:', err));
 
 // =======================================
+// 프론트/ESP가 설정 조회할 API
+// =======================================
+app.get('/api/settings', (req, res) => {
+  res.json({
+    success: true,
+    settings: userSettings
+  });
+});
+
+// =======================================
+// 프리셋 수정 API
+// =======================================
+app.post('/api/settings/update', (req, res) => {
+  const { ledOffHour, wateringIntervalHours, autoWaterEnabled } = req.body;
+
+  if (ledOffHour !== undefined) userSettings.ledOffHour = ledOffHour;
+  if (wateringIntervalHours !== undefined) userSettings.wateringIntervalHours = wateringIntervalHours;
+  if (autoWaterEnabled !== undefined) userSettings.autoWaterEnabled = autoWaterEnabled;
+
+  // JSON 파일 업데이트
+  fs.writeFileSync(
+    './config/settings.json',
+    JSON.stringify(userSettings, null, 2)
+  );
+
+  console.log("⚙️ 사용자 설정 업데이트:", userSettings);
+
+  res.json({
+    success: true,
+    settings: userSettings
+  });
+});
+
+// =======================================
+// ESP32가 LED 자동 OFF/물주기 프리셋 가져가는 API
+// =======================================
+app.get('/command-settings', (req, res) => {
+  res.json(userSettings);
+});
+
+// =======================================
 // ❌ 404 핸들러
 // =======================================
 app.use((req, res) => {
@@ -125,6 +178,7 @@ app.listen(PORT, () => {
   console.log('📌 서버 → ESP32 : GET /command');
   console.log('📌 Front → Server : GET /api/sensor/latest');
   console.log('📌 Front → Server : POST /api/command');
+  console.log('📌 Front ↔ Server : /api/settings, /api/settings/update');
 });
 
 module.exports = app;

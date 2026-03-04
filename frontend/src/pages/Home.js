@@ -83,8 +83,8 @@ function Home() {
   };
 
   const getLightStatus = (value) => {
-    if (value >= 7) return { text: '밝음', color: '#52c41a' };
-    if (value >= 3) return { text: '적당함', color: '#faad14' };
+    if (value >= 3) return { text: '밝음', color: '#52c41a' };
+    if (value >= 7) return { text: '적당함', color: '#faad14' };
     return { text: '어두움', color: '#8c8c8c' };
   };
 

@@ -106,7 +106,12 @@ export const commentAPI = {
 export const sensorAPI = {
   getLatestData: () => api.get('/api/sensor/latest'),
   getHistoryData: () => api.get('/api/sensor/history'),
-  sendCommand: (command) => api.post('/api/command', { command }), // ⭐ 제어 명령 전송
+  sendCommand: (command) => api.post('/api/command', { command }),
+
+  // ⭐ 추가
+  getSettings: () => api.get('/api/settings'),
+  updateSettings: (data) => api.post('/api/settings/update', data),
+  getSpecies: () => api.get('/api/species')
 };
 
 export const adminAPI = {
@@ -121,5 +126,7 @@ export const adminAPI = {
   deletePost: (id) => api.delete(`/api/admin/posts/${id}`),
   deleteMarketItem: (id) => api.delete(`/api/admin/marketplace/${id}`),
 };
+
+
 
 export default api;

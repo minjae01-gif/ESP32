@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Typography, Tag, Space, Button, message, InputNumber, Switch } from 'antd';
-import { 
-  ThunderboltOutlined, 
+import React, { useState, useEffect, useMemo } from 'react';
+import { Card, Row, Col, Typography, Tag, Space, Button, message, InputNumber, Switch, Select, Divider } from 'antd';
+import {
+  ThunderboltOutlined,
   CloudOutlined,
   BulbOutlined,
   DropboxOutlined,
@@ -13,6 +13,7 @@ import Layout from '../components/Layout';
 import { sensorAPI } from '../services/api';
 
 const { Title, Text } = Typography;
+const { Option } = Select;
 
 /* =========================================================
    ⭐ 커스텀 반원형 게이지
@@ -142,9 +143,19 @@ function DashBoard() {
   const [motorStatus, setMotorStatus] = useState(false);
   const [controlLoading, setControlLoading] = useState(false);
 
-  // ⭐ 새 설정 상태
+  // ⭐ 식물 데이터
+  const [speciesList, setSpeciesList] = useState([]);
+  const [selectedSpeciesId, setSelectedSpeciesId] = useState(null);
+
+  const selectedSpecies = useMemo(
+    () => speciesList.find(s => s.id === selectedSpeciesId),
+    [speciesList, selectedSpeciesId]
+  );
+
+  // ⭐ 새 설정 상태 (백엔드에 ledOnHoursPerDay 추가됨)
   const [settings, setSettings] = useState({
     ledOffHour: 22,
+    ledOnHoursPerDay: 8,            // ✅ 새로 추가
     wateringIntervalHours: 6,
     autoWaterEnabled: true
   });
@@ -153,6 +164,7 @@ function DashBoard() {
   useEffect(() => {
     fetchSensorData();
     fetchSettings();
+    fetchSpecies();
 
     const interval = setInterval(fetchSensorData, 15000);
     return () => clearInterval(interval);
@@ -172,10 +184,47 @@ function DashBoard() {
   const fetchSettings = async () => {
     try {
       const res = await sensorAPI.getSettings();
-      if (res.data.success) setSettings(res.data.settings);
+      if (res.data.success) {
+        // 서버 settings에 ledOnHoursPerDay가 없을 수도 있으니 기본값 보정
+        setSettings(prev => ({
+          ...prev,
+          ...(res.data.settings || {}),
+          ledOnHoursPerDay: res.data.settings?.ledOnHoursPerDay ?? prev.ledOnHoursPerDay
+        }));
+      }
     } catch (e) {
       console.error("⚠ 설정 불러오기 실패", e);
     }
+  };
+
+  const fetchSpecies = async () => {
+    try {
+      const res = await sensorAPI.getSpecies();
+      // backend에서 res.json(species)로 배열 반환 중
+      setSpeciesList(Array.isArray(res.data) ? res.data : []);
+    } catch (e) {
+      console.error("⚠ 식물 데이터 불러오기 실패", e);
+      message.error("식물 데이터셋을 불러오지 못했습니다. 서버 /api/species 확인!");
+    }
+  };
+
+  /* ---------------------- 식물 프리셋 적용 ---------------------- */
+  const applyPlantPreset = () => {
+    if (!selectedSpecies) {
+      message.warning("먼저 식물을 선택하세요!");
+      return;
+    }
+
+    const wateringIntervalHours = Math.max(1, (selectedSpecies.water_cycle_days || 1) * 24);
+    const ledOnHoursPerDay = Math.min(24, Math.max(0, selectedSpecies.light_hours_per_day || 8));
+
+    setSettings(prev => ({
+      ...prev,
+      wateringIntervalHours,
+      ledOnHoursPerDay
+    }));
+
+    message.success(`🌿 ${selectedSpecies.name} 추천 설정이 적용되었습니다!`);
   };
 
   /* ---------------------- LED 제어 ---------------------- */
@@ -221,8 +270,11 @@ function DashBoard() {
       const res = await sensorAPI.updateSettings(settings);
       if (res.data.success) {
         message.success("설정이 저장되었습니다!");
+      } else {
+        message.error("설정 저장 실패(서버 응답 실패)");
       }
-    } catch {
+    } catch (e) {
+      console.error(e);
       message.error("설정 저장 실패");
     }
   };
@@ -356,6 +408,44 @@ function DashBoard() {
 
               <Space direction="vertical" style={{ width: "100%", marginTop: 16 }}>
 
+                {/* ✅ 식물 프리셋 */}
+                <div>
+                  <Text strong>🌿 식물 선택(프리셋)</Text>
+                  <Select
+                    showSearch
+                    placeholder="식물을 선택하세요"
+                    optionFilterProp="children"
+                    style={{ width: "100%", marginTop: 8 }}
+                    value={selectedSpeciesId}
+                    onChange={(v) => setSelectedSpeciesId(v)}
+                    filterOption={(input, option) =>
+                      (option?.children ?? '').toLowerCase().includes(input.toLowerCase())
+                    }
+                  >
+                    {speciesList.map((plant) => (
+                      <Option key={plant.id} value={plant.id}>
+                        {plant.name}
+                      </Option>
+                    ))}
+                  </Select>
+
+                  <Space style={{ marginTop: 12, width: "100%" }} direction="vertical">
+                    <Button type="dashed" block onClick={applyPlantPreset}>
+                      추천 설정 자동 적용
+                    </Button>
+
+                    {selectedSpecies && (
+                      <div style={{ padding: 12, background: "#fafafa", borderRadius: 12 }}>
+                        <Text>
+                          <b>{selectedSpecies.name}</b> · 물주기 {selectedSpecies.water_cycle_days}일 · 조명 {selectedSpecies.light_hours_per_day}시간/일
+                        </Text>
+                      </div>
+                    )}
+                  </Space>
+                </div>
+
+                <Divider style={{ margin: "8px 0" }} />
+
                 {/* LED OFF 시간 */}
                 <div>
                   <Text strong>LED 자동 꺼짐 시간 (24h)</Text>
@@ -368,12 +458,24 @@ function DashBoard() {
                   />
                 </div>
 
+                {/* ✅ LED 하루 켜는 시간 */}
+                <div>
+                  <Text strong>LED 하루 켜는 시간 (시간/일)</Text>
+                  <InputNumber
+                    min={0}
+                    max={24}
+                    value={settings.ledOnHoursPerDay}
+                    onChange={(v) => setSettings({ ...settings, ledOnHoursPerDay: v })}
+                    style={{ width: "100%", marginTop: 8 }}
+                  />
+                </div>
+
                 {/* 물주기 간격 */}
                 <div>
                   <Text strong>자동 물주기 간격 (시간)</Text>
                   <InputNumber
                     min={1}
-                    max={48}
+                    max={24 * 60} // 최대 60일(원하면 조정)
                     value={settings.wateringIntervalHours}
                     onChange={(v) => setSettings({ ...settings, wateringIntervalHours: v })}
                     style={{ width: "100%", marginTop: 8 }}
@@ -429,6 +531,12 @@ function DashBoard() {
                   </Tag>
                   <Tag color={motorStatus ? "blue" : "default"}>
                     펌프: {motorStatus ? "ON" : "OFF"}
+                  </Tag>
+                </div>
+
+                <div style={{ marginTop: 12 }}>
+                  <Tag color="blue">
+                    설정: 물주기 {settings.wateringIntervalHours}시간마다 / LED {settings.ledOnHoursPerDay}시간/일 / LED OFF {settings.ledOffHour}시
                   </Tag>
                 </div>
               </div>

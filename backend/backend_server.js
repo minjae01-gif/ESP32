@@ -7,9 +7,6 @@ const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
 
-// 외부 설정 파일 로드
-const settings = JSON.parse(fs.readFileSync('./config/settings.json', 'utf-8'));
-
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -21,9 +18,33 @@ app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // =======================================
+// ⚙️ settings.json 로드 (안전하게)
+// =======================================
+const SETTINGS_PATH = path.join(__dirname, 'config', 'settings.json');
+
+function loadSettingsFile() {
+  try {
+    if (!fs.existsSync(SETTINGS_PATH)) return {};
+    return JSON.parse(fs.readFileSync(SETTINGS_PATH, 'utf-8'));
+  } catch (e) {
+    console.error("❌ settings.json 로드 실패:", e);
+    return {};
+  }
+}
+
+function saveSettingsFile(data) {
+  try {
+    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(data, null, 2));
+  } catch (e) {
+    console.error("❌ settings.json 저장 실패:", e);
+  }
+}
+
+const settings = loadSettingsFile();
+
+// =======================================
 // ⚙️ 관리자 라우트 등록
 // =======================================
-
 const adminRoutes = require('./routes/admin');
 app.use('/api/admin', adminRoutes);
 
@@ -31,9 +52,17 @@ app.use('/api/admin', adminRoutes);
 // ⚙️ 사용자 설정 (LED/물주기 프리셋)
 // =======================================
 let userSettings = {
-  ledOffHour: settings.ledOffHour || 22,
-  wateringIntervalHours: settings.wateringIntervalHours || 6,
-  autoWaterEnabled: settings.autoWaterEnabled ?? true
+  // 기존
+  ledOffHour: settings.ledOffHour ?? 22,
+  wateringIntervalHours: settings.wateringIntervalHours ?? 6,
+  autoWaterEnabled: settings.autoWaterEnabled ?? true,
+
+  // ⭐ 토양 습도 임계값(원하면 프리셋으로도 조정 가능)
+  soilMoistureMin: settings.soilMoistureMin ?? 30,
+  soilMoistureMax: settings.soilMoistureMax ?? 60,
+
+  // ⭐ 추가: LED 하루 켜는 시간(식물 프리셋 적용용)
+  ledOnHoursPerDay: settings.ledOnHoursPerDay ?? 8
 };
 
 // =======================================
@@ -61,19 +90,19 @@ let latestSensorData = {
 // ⭐ ESP32 → 서버 : 센서 데이터 수신
 // =======================================
 app.post('/sensor', (req, res) => {
-  const { soil, light } = req.body;
+  const { soil, light, temperature, humidity } = req.body;
 
   latestSensorData = {
-    temperature: 0,
-    humidity: 0,
-    soilMoisture: soil,
-    lightLevel: Math.round(light / 10),
+    temperature: temperature ?? 0,
+    humidity: humidity ?? 0,
+    soilMoisture: soil ?? 0,
+    lightLevel: Math.round((light ?? 0) / 10),
     timestamp: new Date()
   };
 
   console.log("\n📡 [ESP32 → 서버] 센서 데이터 수신");
-  console.log(`   🌱 Soil : ${soil}%`);
-  console.log(`   💡 Light: ${light}% → ${latestSensorData.lightLevel}`);
+  console.log(`   🌱 Soil : ${latestSensorData.soilMoisture}%`);
+  console.log(`   💡 Light: ${light ?? 0} → ${latestSensorData.lightLevel}/10`);
 
   res.json({ success: true, message: "Sensor data received" });
 });
@@ -96,7 +125,7 @@ let command = "";
 // ESP32가 명령을 가져감
 app.get('/command', (req, res) => {
   res.send(command);
-  command = ""; 
+  command = "";
 });
 
 // 프론트엔드가 명령 전달
@@ -110,7 +139,7 @@ app.post('/api/command', (req, res) => {
 // 📌 REST API 기본 라우트 등록
 // =======================================
 app.use('/api/auth', authRoutes);
-app.use('/api', commentRoutes); 
+app.use('/api', commentRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
 app.use('/api/trade', tradeRoutes);
@@ -123,6 +152,20 @@ const db = require('./config/db');
 db.query('SELECT 1')
   .then(() => console.log('✅ MySQL 연결 성공!'))
   .catch(err => console.error('❌ MySQL 연결 실패:', err));
+
+// =======================================
+// ⭐ 식물 데이터셋 API
+// =======================================
+app.get('/api/species', (req, res) => {
+  try {
+    const speciesPath = path.join(__dirname, 'config', 'plant_species.json');
+    const species = JSON.parse(fs.readFileSync(speciesPath, 'utf-8'));
+    res.json(species);
+  } catch (error) {
+    console.error("❌ plant_species.json 로드 실패:", error);
+    res.status(500).json({ success: false, message: "식물 데이터 로드 실패" });
+  }
+});
 
 // =======================================
 // 프론트/ESP가 설정 조회할 API
@@ -138,17 +181,27 @@ app.get('/api/settings', (req, res) => {
 // 프리셋 수정 API
 // =======================================
 app.post('/api/settings/update', (req, res) => {
-  const { ledOffHour, wateringIntervalHours, autoWaterEnabled } = req.body;
+  const {
+    ledOffHour,
+    wateringIntervalHours,
+    autoWaterEnabled,
+    soilMoistureMin,
+    soilMoistureMax,
+    ledOnHoursPerDay
+  } = req.body;
 
   if (ledOffHour !== undefined) userSettings.ledOffHour = ledOffHour;
   if (wateringIntervalHours !== undefined) userSettings.wateringIntervalHours = wateringIntervalHours;
   if (autoWaterEnabled !== undefined) userSettings.autoWaterEnabled = autoWaterEnabled;
 
-  // JSON 파일 업데이트
-  fs.writeFileSync(
-    './config/settings.json',
-    JSON.stringify(userSettings, null, 2)
-  );
+  if (soilMoistureMin !== undefined) userSettings.soilMoistureMin = soilMoistureMin;
+  if (soilMoistureMax !== undefined) userSettings.soilMoistureMax = soilMoistureMax;
+
+  // ⭐ 추가: LED 하루 켜는 시간
+  if (ledOnHoursPerDay !== undefined) userSettings.ledOnHoursPerDay = ledOnHoursPerDay;
+
+  // settings.json 업데이트
+  saveSettingsFile(userSettings);
 
   console.log("⚙️ 사용자 설정 업데이트:", userSettings);
 
@@ -159,7 +212,7 @@ app.post('/api/settings/update', (req, res) => {
 });
 
 // =======================================
-// ESP32가 LED 자동 OFF/물주기 프리셋 가져가는 API
+// ESP32가 LED/물주기 프리셋 가져가는 API
 // =======================================
 app.get('/command-settings', (req, res) => {
   res.json(userSettings);
@@ -181,13 +234,5 @@ app.use((req, res) => {
 // =======================================
 app.listen(PORT, () => {
   console.log(`\n🚀 서버 실행중: http://localhost:${PORT}`);
-
-  console.log('\n📋 등록된 기능');
-  console.log('📌 ESP32 → 서버 : POST /sensor');
-  console.log('📌 서버 → ESP32 : GET /command');
-  console.log('📌 Front → Server : GET /api/sensor/latest');
-  console.log('📌 Front → Server : POST /api/command');
-  console.log('📌 Front ↔ Server : /api/settings, /api/settings/update');
+  console.log('📌 /api/species , /api/settings , /api/settings/update , /command-settings 준비됨');
 });
-
-module.exports = app;

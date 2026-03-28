@@ -47,11 +47,16 @@ export const authAPI = {
     return response.data;
   },
   // 이메일 인증번호 발송
-  sendCode: (email) => api.post('/api/auth/send-code', { email }),
+  sendCode: (data) => api.post('/api/auth/send-code', data),
+  // 이메일 인증번호 확인
   verifyCode: (email, code) => api.post('/api/auth/verify-code', { email, code }),
   
   // 구글 로그인
   googleLogin: (data) => api.post('/api/auth/google', data),
+
+  // 비밀번호 재설정
+  resetPassword: (data) => api.post('/api/auth/reset-password', data),
+  updateProfile: (data) => api.put('/api/auth/update-profile', data),
 };
 
 // 게시글 API

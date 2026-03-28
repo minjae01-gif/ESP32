@@ -44,6 +44,26 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // 구글 로그인
+  const googleLogin = async (credential) => {
+    try {
+      const response = await authAPI.googleLogin({ credential });
+      // 기존 api 구조에 따라 response.data 안에 토큰이 있을 수 있으니 맞춰서 꺼냄
+      const { token, user } = response.data || response; 
+      
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      setUser(user);
+      
+      return { success: true };
+    } catch (error) {
+      return { 
+        success: false, 
+        message: error.response?.data?.message || '구글 로그인에 실패했습니다.' 
+      };
+    }
+  };
+
   // 회원가입
   const signup = async (username, email, password) => {
     try {
@@ -65,7 +85,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, googleLogin,signup, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

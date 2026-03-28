@@ -46,6 +46,12 @@ export const authAPI = {
     const response = await api.put('/api/auth/change-password', data);
     return response.data;
   },
+  // 이메일 인증번호 발송
+  sendCode: (email) => api.post('/api/auth/send-code', { email }),
+  verifyCode: (email, code) => api.post('/api/auth/verify-code', { email, code }),
+  
+  // 구글 로그인
+  googleLogin: (data) => api.post('/api/auth/google', data),
 };
 
 // 게시글 API

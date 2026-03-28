@@ -9,6 +9,16 @@ const path = require('path');
 const verifyToken = (req, res, next) => {
   const token = req.headers['authorization']?.split(' ')[1];
 
+  // 관리자 권한 확인 미들웨어 (verifyToken 다음에 사용)
+const verifyAdmin = (req, res, next) => {
+  // 토큰 해석본(req.user)에 담긴 role이 admin인지 확인
+  if (req.user && req.user.role === 'admin') {
+    next(); // 관리자가 맞으면 요청한 라우터로 무사 통과!
+  } else {
+    res.status(403).json({ success: false, message: '관리자 권한이 없습니다.' });
+  }
+};
+
   if (!token) {
     return res.status(403).json({ 
       success: false, 

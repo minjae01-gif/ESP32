@@ -3,6 +3,18 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../config/db');
+const nodemailer = require('nodemailer');
+const { OAuth2Client } = require('google-auth-library');
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+//메일 전송 설정 (env 파일에서 이메일 계정과 비밀번호를 불러와서 설정)
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
 // 회원가입 API
 router.post('/register', async (req, res) => {
@@ -120,6 +132,64 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// 구글 소셜 로그인 API
+
+router.post('/google', async (req, res) => {
+  try {
+    const { credential } = req.body;
+    
+    // 구글 서버에 이 토큰이 진짜인지 확인 요청
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    
+    const payload = ticket.getPayload();
+    const { email, name } = payload; // 구글에서 이메일과 이름을 뽑아옴
+
+    // 우리 DB에 가입된 이메일인지 확인
+    const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+    let user = users[0];
+
+    // 가입되지 않은 유저라면 자동으로 회원가입 처리
+    if (!user) {
+      // 구글 로그인은 비밀번호가 필요 없지만, DB 구조상 임의의 아주 복잡한 비밀번호를 생성해서 넣어둠
+      const dummyPassword = await bcrypt.hash(Math.random().toString(36).slice(-10), 10);
+      let newUsername = name || email.split('@')[0]; // 이름이 없으면 이메일 앞자리 사용
+
+      // 닉네임 중복 방지 (간단하게 뒤에 난수 추가)
+      const [existingName] = await db.query('SELECT * FROM users WHERE username = ?', [newUsername]);
+      if (existingName.length > 0) {
+        newUsername = newUsername + Math.floor(Math.random() * 1000);
+      }
+
+      const [result] = await db.query(
+        'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
+        [newUsername, email, dummyPassword]
+      );
+      
+      user = { id: result.insertId, username: newUsername, email, role: 'user' };
+    }
+
+    // 로그인 성공 처리 (우리 사이트 전용 JWT 토큰 발급)
+    const token = jwt.sign(
+      { userId: user.id || user.insertId, username: user.username, role: user.role || 'user' },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({ 
+      success: true, 
+      token, 
+      user: { id: user.id, username: user.username, email: user.email, role: user.role || 'user' } 
+    });
+
+  } catch (error) {
+    console.error('구글 로그인 에러:', error);
+    res.status(500).json({ success: false, message: '구글 로그인 처리에 실패했습니다.' });
+  }
+});
+
 // 토큰 검증 미들웨어 (로그인 상태 확인용)
 const verifyToken = (req, res, next) => {
   const token = req.headers['authorization']?.split(' ')[1];
@@ -221,6 +291,82 @@ router.put('/change-password', verifyToken, async (req, res) => {
       success: false,
       message: '비밀번호 변경 중 오류가 발생했습니다.'
     });
+  }
+});
+
+
+// 인증번호 이메일 발송 API
+router.post('/send-code', async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ success: false, message: '이메일을 입력해주세요.' });
+  }
+
+  try {
+    // 이미 가입된 이메일인지 확인
+    const [existingUsers] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+    if (existingUsers.length > 0) {
+      return res.status(400).json({ success: false, message: '이미 가입된 이메일입니다.' });
+    }
+
+    // 6자리 랜덤 숫자 생성
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // DB에 저장 (이미 있다면 덮어쓰기)
+    await db.query(
+      `INSERT INTO email_verifications (email, code) VALUES (?, ?) 
+       ON DUPLICATE KEY UPDATE code = ?, created_at = CURRENT_TIMESTAMP`,
+      [email, code, code]
+    );
+
+    // 이메일 발송 옵션
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: '🌱 [식물 커뮤니티] 회원가입 인증번호 안내',
+      html: `
+        <div style="padding: 20px; background-color: #f6ffed; border-radius: 8px;">
+          <h2>식물 커뮤니티 회원가입 인증번호</h2>
+          <p>아래 6자리 인증번호를 가입 화면에 입력해주세요.</p>
+          <div style="font-size: 24px; font-weight: bold; color: #52c41a; padding: 10px; background: white; text-align: center; border-radius: 4px;">
+            ${code}
+          </div>
+        </div>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.json({ success: true, message: '인증번호가 발송되었습니다. 이메일을 확인해주세요.' });
+
+  } catch (error) {
+    console.error('메일 발송 에러:', error);
+    res.status(500).json({ success: false, message: '메일 발송에 실패했습니다.' });
+  }
+});
+
+// 인증번호 확인 API
+router.post('/verify-code', async (req, res) => {
+  const { email, code } = req.body;
+
+  try {
+    const [records] = await db.query('SELECT * FROM email_verifications WHERE email = ?', [email]);
+    
+    if (records.length === 0) {
+      return res.status(400).json({ success: false, message: '인증 요청 내역이 없습니다.' });
+    }
+
+    if (records[0].code !== code) {
+      return res.status(400).json({ success: false, message: '인증번호가 일치하지 않습니다.' });
+    }
+
+    // 인증 성공 시 DB에서 해당 이메일의 인증번호 내역 삭제 (일회용)
+    await db.query('DELETE FROM email_verifications WHERE email = ?', [email]);
+
+    res.json({ success: true, message: '이메일 인증이 완료되었습니다.' });
+  } catch (error) {
+    console.error('인증 확인 에러:', error);
+    res.status(500).json({ success: false, message: '인증 확인 중 오류가 발생했습니다.' });
   }
 });
 module.exports = router;

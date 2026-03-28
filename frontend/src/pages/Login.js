@@ -3,14 +3,16 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Form, Input, Button, Card, Typography, message, Space , Alert } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useAuth } from '../context/AuthContext';
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
 
 const { Title, Text } = Typography;
 
+const GOOGLE_CLIENT_ID = "903127470546-25prdmi9af1q6vra2lpknhkcahrv86bv.apps.googleusercontent.com";
+
 function Login() {
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const navigate = useNavigate();
-
 
   const [searchParams] = useSearchParams();
   const isAuthRequired = searchParams.get('auth') === 'required';
@@ -32,6 +34,23 @@ function Login() {
   } finally {
     setLoading(false);
   }
+}
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setLoading(true);
+    try {
+      const result = await googleLogin(credentialResponse.credential);
+      if (result.success) {
+        message.success('구글 계정으로 로그인되었습니다!');
+        navigate('/dashboard');
+      } else {
+        message.error(result.message);
+      }
+    } catch (error) {
+      message.error('구글 로그인 처리 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
 };
 
 
@@ -39,7 +58,7 @@ function Login() {
     <div style={styles.container}>
       <Card style={styles.card}>
         <Title level={2} style={{ textAlign: 'center', marginBottom: '30px' }}>
-          🌱 로그인
+          🌱 식물 커뮤니티
         </Title>
 
                 {/* 🔥 핵심: 주소 뒤에 auth=required가 있으면 고정된 경고 박스를 보여줌 */}
@@ -108,6 +127,20 @@ function Login() {
               </Button>
             </Space>
           </Form.Item>
+
+          {/* 🌟 추가: 구글 로그인 버튼 구역 */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
+            <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => {
+                  message.error('구글 로그인 팝업을 여는 데 실패했습니다.');
+                }}
+                text="signin_with"
+                width="100%"
+              />
+            </GoogleOAuthProvider>
+          </div>
 
           <div style={{ textAlign: 'center' }}>
             <Text>아직 계정이 없으신가요? </Text>

@@ -94,6 +94,12 @@ export const tradeAPI = {
   
   // 받은 요청 확인하기
   getReceivedRequests: () => api.get('/api/trade/received'),
+
+  // 거래 수락 API (PATCH)
+  acceptRequest: (requestId) => api.patch(`/api/trade/accept/${requestId}`),
+
+  // 거래 완료 API (PATCH)
+  completeRequest: (requestId) => api.patch(`/api/trade/complete/${requestId}`),
 };
 
 // 댓글 API

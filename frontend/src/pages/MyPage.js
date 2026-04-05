@@ -61,28 +61,28 @@ function MyPage() {
 const handleUpdateNickname = async (values) => {
     setEditLoading(true);
     try {
-      // 1. API 호출 (여기서 성공하면 DB는 이미 바뀜)
+      //  API 호출 
       const response = await authAPI.updateProfile({ username: values.username });
       
       if (response && response.data && response.data.success) {
-        // --- 여기서부터 에러가 나면 catch로 튕겨서 '실패' 메시지가 뜸 ---
         
-        // 2. AuthContext(전역상태) 안전하게 업데이트
+        
+        // AuthContext 업데이트
         if (user) {
           const updatedUser = { ...user, username: values.username };
           setUser(updatedUser);
           localStorage.setItem('user', JSON.stringify(updatedUser));
         }
 
-        // 3. 로컬 userInfo 안전하게 업데이트 (prev를 사용하는 방식이 가장 안전함)
+        // 로컬 userInfo  업데이트 
         setUserInfo(prev => {
           if (!prev) return { username: values.username }; // 데이터가 없으면 새로 생성
           return { ...prev, username: values.username };  // 있으면 닉네임만 교체
         });
 
-        // 4. 성공 메시지 및 편집 모드 종료
+        // 성공 메시지 및 편집 모드 종료
         message.success('닉네임이 성공적으로 변경되었습니다!');
-        setIsEditing(false); // 👈 이제 이 코드가 정상적으로 실행되어 창이 닫힙니다!
+        setIsEditing(false);
         
       } else {
         message.error(response?.data?.message || '닉네임 수정 실패');
@@ -112,6 +112,35 @@ const handleUpdateNickname = async (values) => {
       message.error(error.response?.data?.message || '변경 중 오류 발생');
     } finally {
       setChangeLoading(false);
+    }
+  };
+
+  // 거래 수락 처리
+  const handleAcceptTrade = async (requestId) => {
+    try {
+      // ⚠️ 만약 api.js에 acceptRequest가 없다면 patch(`/trade/accept/${requestId}`)로 직접 호출
+      const response = await tradeAPI.acceptRequest(requestId); 
+      if (response.data.success) {
+        message.success('거래를 수락했습니다. 상품이 예약 중으로 변경되었습니다.');
+        fetchMyData(); // 목록 새로고침
+      }
+    } catch (error) {
+      console.error('수락 에러:', error);
+      message.error(error.response?.data?.message || '수락 처리 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 거래 완료 처리
+  const handleCompleteTrade = async (requestId) => {
+    try {
+      const response = await tradeAPI.completeRequest(requestId);
+      if (response.data.success) {
+        message.success('거래가 완료되었습니다. 상품이 판매 완료로 변경되었습니다.');
+        fetchMyData(); // 목록 새로고침
+      }
+    } catch (error) {
+      console.error('완료 에러:', error);
+      message.error(error.response?.data?.message || '완료 처리 중 오류가 발생했습니다.');
     }
   };
 
@@ -184,14 +213,44 @@ const handleUpdateNickname = async (values) => {
         <Card style={{ ...styles.card, marginTop: '24px' }} title={
           <span><NotificationOutlined style={{ color: '#faad14', marginRight: 8 }} /> 받은 거래 요청 <Badge count={requests.length} /></span>
         }>
-          <List
-            dataSource={requests}
-            renderItem={(item) => (
-              <List.Item actions={[<Button type="link" onClick={() => navigate(`/marketplace/${item.item_id}`)}>보기</Button>]}>
-                <List.Item.Meta title={`${item.buyer_name}님의 거래 요청`} description={item.item_title} />
-              </List.Item>
-            )}
-          />
+<List
+  dataSource={requests}
+  renderItem={(item) => (
+    <List.Item 
+      actions={[
+        <Button type="link" onClick={() => navigate(`/marketplace/${item.item_id}`)}>보기</Button>,
+        
+        // 대기 중일 때만 [수락] 버튼 표시
+        item.status === 'pending' && (
+          <Button type="primary" size="small" onClick={() => handleAcceptTrade(item.id)}>
+            수락
+          </Button>
+        ),
+
+        // 수락된(예약 중) 상태일 때만 [거래 완료] 버튼 표시
+        item.status === 'accepted' && (
+          <Button type="default" size="small" style={{ color: '#52c41a', borderColor: '#52c41a' }} onClick={() => handleCompleteTrade(item.id)}>
+            거래 완료
+          </Button>
+        ),
+
+        // 완료된 거래는 표시만
+        item.status === 'completed' && <Tag color="default">거래 종료</Tag>
+      ]}
+    >
+      <List.Item.Meta 
+        title={
+          <Space>
+            {item.buyer_name}님의 거래 요청
+            {item.status === 'accepted' && <Tag color="orange">예약 중</Tag>}
+            {item.status === 'completed' && <Tag color="blue">판매 완료</Tag>}
+          </Space>
+        } 
+        description={item.item_title} 
+      />
+    </List.Item>
+  )}
+/>
         </Card>
 
         {/* 비밀번호 변경 모달 */}

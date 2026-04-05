@@ -282,15 +282,13 @@ function MarketplaceDetail() {
             <Col xs={24} md={12}>
               <Space direction="vertical" size="large" style={{ width: '100%' }}>
                 {/* 상태 태그 */}
-                <div>
+              <div>
                   {item.status === 'sold' ? (
-                    <Tag color="default" style={{ fontSize: '16px', padding: '8px 16px' }}>
-                      판매완료
-                    </Tag>
+                    <Tag color="default" style={{ fontSize: '16px', padding: '8px 16px' }}>판매완료</Tag>
+                  ) : item.status === 'reserved' ? (
+                    <Tag color="orange" style={{ fontSize: '16px', padding: '8px 16px' }}>예약 중</Tag>
                   ) : (
-                    <Tag color="green" style={{ fontSize: '16px', padding: '8px 16px' }}>
-                      판매중
-                    </Tag>
+                    <Tag color="green" style={{ fontSize: '16px', padding: '8px 16px' }}>판매중</Tag>
                   )}
                 </div>
 
@@ -371,24 +369,6 @@ function MarketplaceDetail() {
                         수정
                       </Button>
                       
-                      {item.status === 'selling' ? (
-                        <Button
-                          icon={<CheckCircleOutlined />}
-                          onClick={() => handleStatusChange('sold')}
-                          type="primary"
-                          size="large"
-                        >
-                          판매완료
-                        </Button>
-                      ) : (
-                        <Button
-                          onClick={() => handleStatusChange('selling')}
-                          size="large"
-                        >
-                          판매중으로 변경
-                        </Button>
-                      )}
-                      
                       <Button
                         icon={<DeleteOutlined />}
                         onClick={handleDelete}
@@ -408,17 +388,20 @@ function MarketplaceDetail() {
                       size="large" 
                       icon={<ShopOutlined />}
                       onClick={handleTradeRequest}
-                      disabled={item.status === 'sold'}
+                      // 판매 중이 아닐 때(reserved, sold) 버튼 비활성화
+                      disabled={item.status !== 'selling'} 
                       block
                       style={{ 
                         height: '50px', 
                         fontSize: '18px', 
-                        background: '#faad14', 
-                        borderColor: '#faad14' 
+                        background: item.status === 'selling' ? '#faad14' : '#d9d9d9', 
+                        borderColor: item.status === 'selling' ? '#faad14' : '#d9d9d9' 
                       }}
                     >
-                      {item.status === 'sold' ? '판매 완료된 상품입니다' : '💬 판매자에게 거래 요청하기'}
-                    </Button>
+                      {item.status === 'sold' ? '판매 완료된 상품입니다' : 
+                      item.status === 'reserved' ? '이미 거래 중인 상품입니다' : 
+                      '💬 판매자에게 거래 요청하기'}
+                  </Button>
                   </>
                 )}
 

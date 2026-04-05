@@ -148,14 +148,6 @@ app.use('/api/plants', plantRoutes);
 app.use('/api/myplants', myPlantsRoutes);
 
 // =======================================
-// 🔌 DB 연결 테스트
-// =======================================
-const db = require('./config/db');
-db.query('SELECT 1')
-  .then(() => console.log('✅ MySQL 연결 성공!'))
-  .catch(err => console.error('❌ MySQL 연결 실패:', err));
-
-// =======================================
 // ⭐ 식물 데이터셋 API
 // =======================================
 app.get('/api/species', (req, res) => {

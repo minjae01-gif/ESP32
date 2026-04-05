@@ -66,6 +66,7 @@ function Marketplace() {
 
   const sellingCount = items.filter(item => item.status === 'selling').length;
   const soldCount = items.filter(item => item.status === 'sold').length;
+  const reservedCount = items.filter(item => item.status === 'reserved').length;
 
   return (
     <Layout>
@@ -92,6 +93,7 @@ function Marketplace() {
             >
               <Option value="all">전체 상태</Option>
               <Option value="selling">판매중</Option>
+              <Option value="reserved">예약 중</Option>  
               <Option value="sold">판매완료</Option>
             </Select>
             <Button 
@@ -129,6 +131,16 @@ function Marketplace() {
           <Col span={8}>
             <Card style={styles.statCard}>
               <Statistic
+                title="거래중"
+                value={reservedCount}
+                prefix={<ClockCircleOutlined />}
+                valueStyle={{ color: '#fb9206' }}
+              />
+            </Card>
+          </Col>          
+          <Col span={8}>
+            <Card style={styles.statCard}>
+              <Statistic
                 title="판매완료"
                 value={soldCount}
                 prefix={<CheckCircleOutlined />}
@@ -153,8 +165,8 @@ function Marketplace() {
             {filteredItems.map((item) => (
               <Col xs={24} sm={12} md={8} lg={6} xl={6} key={item.id}>
                 <Badge.Ribbon
-                  text={item.status === 'sold' ? '판매완료' : '판매중'}
-                  color={item.status === 'sold' ? 'gray' : 'green'}
+                  text={item.status === 'sold' ? '판매완료' : item.status === 'reserved' ? '예약 중' : '판매중'}
+                  color={item.status === 'sold' ? 'gray' : item.status === 'reserved' ? 'orange' : 'green'}
                 >
                   <Card
                     hoverable
@@ -185,6 +197,7 @@ function Marketplace() {
                     style={{
                       ...styles.card,
                       opacity: item.status === 'sold' ? 0.7 : 1,
+                      opacity: item.status === 'selling' ? 1 : 0.7,
                     }}
                   >
                     <Card.Meta

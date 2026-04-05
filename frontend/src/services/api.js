@@ -85,6 +85,11 @@ export const marketplaceAPI = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   deleteItem: (id) => api.delete(`/api/marketplace/${id}`),
+  // 내 판매글 목록을 가져오는 함수 추가
+  getMyItems: () => api.get('/api/marketplace/my-items'),
+
+  // 상품 상태를 변경하는 함수 추가
+  updateItemStatus: (id, status) => api.patch(`/api/marketplace/${id}/status`, { status }),
 };
 
 // 거래 요청 API

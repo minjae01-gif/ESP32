@@ -197,7 +197,7 @@ function Marketplace() {
                     style={{
                       ...styles.card,
                       opacity: item.status === 'sold' ? 0.7 : 1,
-                      opacity: item.status === 'selling' ? 1 : 0.7,
+                      opacity: item.status === 'reserved' ? 0.9 : 1,
                     }}
                   >
                     <Card.Meta

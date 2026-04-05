@@ -5,11 +5,20 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const http = require('http'); 
+const { Server } = require('socket.io'); 
 require('dotenv').config();
 
 const app = express();
+const server = http.createServer(app); // Express를 HTTP 서버로 감싸기
 const PORT = process.env.PORT || 5000;
 
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:3000", // 프론트엔드 주소에 맞춰줘
+    methods: ["GET", "POST"]
+  }
+});
 // =======================================
 // ⚙️ 미들웨어
 // =======================================
@@ -47,6 +56,36 @@ const settings = loadSettingsFile();
 // =======================================
 const adminRoutes = require('./routes/admin');
 app.use('/api/admin', adminRoutes);
+
+
+// =======================================
+//  실시간 채팅 소켓 로직
+// =======================================
+io.on('connection', (socket) => {
+  console.log('새 유저 접속:', socket.id);
+
+  // 채팅방 입장 이벤트
+  socket.on('join_room', (roomId) => {
+    socket.join(roomId);
+    console.log(`유저(${socket.id})가 방(${roomId})에 입장함`);
+  });
+
+  // 메시지 전송 이벤트
+  socket.on('send_message', (data) => {
+    io.to(data.roomId).emit('receive_message', data);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('유저 접속 종료');
+  });
+});
+
+// =======================================
+//  서버 시작 (app.listen 대신 server.listen)
+// =======================================
+server.listen(PORT, () => {
+  console.log(`\n🚀 실시간 서버 실행중: http://localhost:${PORT}`);
+});
 
 // =======================================
 // ⚙️ 사용자 설정 (LED/물주기 프리셋)
@@ -226,7 +265,7 @@ app.use((req, res) => {
 // =======================================
 // 🚀 서버 시작
 // =======================================
-app.listen(PORT, () => {
-  console.log(`\n🚀 서버 실행중: http://localhost:${PORT}`);
-  console.log('📌 /api/species , /api/settings , /api/settings/update , /command-settings 준비됨');
-});
+//app.listen(PORT, () => {
+//  console.log(`\n🚀 서버 실행중: http://localhost:${PORT}`);
+//  console.log('📌 /api/species , /api/settings , /api/settings/update , /command-settings 준비됨');
+//});

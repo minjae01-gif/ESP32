@@ -91,6 +91,46 @@ router.get('/', async (req, res) => {
   }
 });
 
+
+// 1. 내가 올린 상품만 조회 (GET /api/marketplace/my-items)
+router.get('/my-items', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user.userId; // 토큰에서 내 ID 추출
+    const [items] = await db.query(
+      'SELECT * FROM marketplace WHERE user_id = ? ORDER BY created_at DESC',
+      [userId]
+    );
+    res.json({ success: true, items });
+  } catch (error) {
+    res.status(500).json({ success: false, message: '조회 실패' });
+  }
+});
+
+// 2. 상품 상태 수동 변경 (PATCH /api/marketplace/:id/status)
+router.patch('/:id/status', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const userId = req.user.userId;
+
+    // 권한 확인 (내 글이 맞는지)
+    const [item] = await db.query('SELECT user_id, status FROM marketplace WHERE id = ?', [id]);
+    if (item.length === 0) return res.status(404).json({ message: '상품 없음' });
+    if (item[0].user_id !== userId) return res.status(403).json({ message: '권한 없음' });
+
+    // [구상 4번 반영] 이미 판매완료(sold)라면 변경 불가
+    if (item[0].status === 'sold') {
+      return res.status(400).json({ success: false, message: '판매 완료된 상품은 상태를 변경할 수 없습니다.' });
+    }
+
+    await db.query('UPDATE marketplace SET status = ? WHERE id = ?', [status, id]);
+    res.json({ success: true, message: `상태가 ${status}로 변경되었습니다.` });
+  } catch (error) {
+    res.status(500).json({ success: false, message: '변경 실패' });
+  }
+});
+
+
 // 특정 거래글 조회 (GET) - 모든 이미지 포함
 router.get('/:id', async (req, res) => {
   try {

@@ -446,4 +446,4 @@ router.put('/update-profile', verifyToken, async (req, res) => {
     res.status(500).json({ success: false, message: '정보 수정 실패' });
   }
 });
-module.exports = router;
+module.exports = { router, verifyToken };

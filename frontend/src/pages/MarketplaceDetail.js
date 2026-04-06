@@ -22,6 +22,7 @@ import { useAuth } from '../context/AuthContext';
 import Layout from '../components/Layout';
 import Comments from '../components/Comments';
 import { MessageOutlined } from '@ant-design/icons';
+import { chatAPI } from '../services/api';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -143,6 +144,23 @@ function MarketplaceDetail() {
       minute: '2-digit',
     });
   };
+
+  const handleStartChat = async () => {
+  if (!user) {
+    message.warning('로그인이 필요합니다.');
+    return navigate('/login');
+  }
+
+  try {
+    const response = await chatAPI.createRoom(item.id, item.user_id);
+    if (response.data.success) {
+      // 채팅 페이지로 이동하면서 roomId 전달
+      navigate(`/chat/${response.data.roomId}`);
+    }
+  } catch (error) {
+    message.error(error.response?.data?.message || '채팅방 연결 실패');
+  }
+};
 
   const isAuthor = item && user && (
     item.user_id === user.userId || 
@@ -401,6 +419,15 @@ function MarketplaceDetail() {
                       {item.status === 'sold' ? '판매 완료된 상품입니다' : 
                       item.status === 'reserved' ? '이미 거래 중인 상품입니다' : 
                       '💬 판매자에게 거래 요청하기'}
+                  </Button>
+                   <Button 
+                      icon={<MessageOutlined />} 
+                      size="large" 
+                      block 
+                      onClick={handleStartChat}
+                      style={{ marginBottom: '10px' }}
+                    >
+                      판매자와 채팅하기
                   </Button>
                   </>
                 )}

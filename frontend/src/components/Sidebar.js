@@ -11,6 +11,7 @@ import {
   SettingOutlined,
   BookOutlined,
   HeartOutlined,
+  CommentOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -71,6 +72,12 @@ function Sidebar() {
       icon: <ShoppingOutlined />,
       label: '식물 거래',
       onClick: () => navigate('/marketplace'),
+    },
+    {
+      key: '/chat-list',
+      icon: <CommentOutlined />, // 커뮤니티와 구분되도록 말풍선 아이콘 사용
+      label: '메시지',
+      onClick: () => navigate('/chat-list'),
     },
     {
       key: '/mypage',

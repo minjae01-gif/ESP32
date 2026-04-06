@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { authAPI, tradeAPI, marketplaceAPI } from '../services/api';
 import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
+import { chatAPI } from '../services/api';
 const { Option } = Select;
 
 const { Title, Text } = Typography;
@@ -31,6 +32,7 @@ function MyPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [changeLoading, setChangeLoading] = useState(false);
   const [myItems, setMyItems] = useState([]);
+  const [chatRooms, setChatRooms] = useState([]);
 
   const isGoogleUser = user?.email?.includes('@gmail.com');
 
@@ -43,15 +45,17 @@ function MyPage() {
   const fetchMyData = async () => {
     setLoading(true);
     try {
-      const [profileRes, tradeRes, myItemsRes] = await Promise.all([
+      const [profileRes, tradeRes, myItemsRes, chatRes] = await Promise.all([
         authAPI.getProfile(),
         tradeAPI.getReceivedRequests(),
-        marketplaceAPI.getMyItems()
+        marketplaceAPI.getMyItems(),
+        chatAPI.getRooms() 
       ]);
       
       if (profileRes.success) setUserInfo(profileRes.user);
       if (tradeRes.data.success) setRequests(tradeRes.data.requests);
       if (myItemsRes.data.success) setMyItems(myItemsRes.data.items);
+      if (chatRes.data.success) setChatRooms(chatRes.data.rooms);
     } catch (error) {
       console.error('데이터 로드 실패:', error);
       message.error('정보를 불러오는데 실패했습니다.');

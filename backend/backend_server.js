@@ -8,6 +8,9 @@ const fs = require('fs');
 const http = require('http'); 
 const { Server } = require('socket.io'); 
 require('dotenv').config();
+const chatRouter = require('./routes/chat');
+const authData = require('./routes/auth');
+const db = require('./config/db');
 
 const app = express();
 const server = http.createServer(app); // Express를 HTTP 서버로 감싸기
@@ -26,6 +29,7 @@ app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+app.use('/api/chat', chatRouter);
 // =======================================
 // ⚙️ settings.json 로드 (안전하게)
 // =======================================
@@ -62,24 +66,36 @@ app.use('/api/admin', adminRoutes);
 //  실시간 채팅 소켓 로직
 // =======================================
 io.on('connection', (socket) => {
-  console.log('새 유저 접속:', socket.id);
+  console.log('📱 새로운 사용자가 연결되었습니다:', socket.id);
 
-  // 채팅방 입장 이벤트
+  // 방 입장 이벤트
   socket.on('join_room', (roomId) => {
     socket.join(roomId);
-    console.log(`유저(${socket.id})가 방(${roomId})에 입장함`);
+    console.log(`🏠 유저가 방 ${roomId}에 입장했습니다.`);
   });
 
   // 메시지 전송 이벤트
-  socket.on('send_message', (data) => {
-    io.to(data.roomId).emit('receive_message', data);
+  socket.on('send_message', async (data) => {
+    const { room_id, sender_id, message } = data;
+
+    //  DB에 메시지 저장 (실제 대화 내역 보존을 위해)
+    try {
+      await db.query(
+        'INSERT INTO chat_messages (room_id, sender_id, message) VALUES (?, ?, ?)',
+        [room_id, sender_id, message]
+      );
+      
+      //  같은 방에 있는 다른 사람들에게 메시지 전달 (나 제외)
+      socket.to(room_id).emit('receive_message', data);
+    } catch (err) {
+      console.error('메시지 저장 실패:', err);
+    }
   });
 
   socket.on('disconnect', () => {
-    console.log('유저 접속 종료');
+    console.log('❌ 유저 연결 종료');
   });
 });
-
 // =======================================
 //  서버 시작 (app.listen 대신 server.listen)
 // =======================================
@@ -107,13 +123,25 @@ let userSettings = {
 // =======================================
 // 📌 라우트 import
 // =======================================
-const authRoutes = require('./routes/auth');
+
 const postRoutes = require('./routes/posts');
 const marketplaceRoutes = require('./routes/marketplace');
 const commentRoutes = require('./routes/comments');
 const tradeRoutes = require('./routes/trade');
 const plantRoutes = require('./routes/plants');
 const myPlantsRoutes = require('./routes/myplants');
+
+// =======================================
+// 📌 REST API 기본 라우트 등록
+// =======================================
+
+app.use('/api', commentRoutes);
+app.use('/api/posts', postRoutes);
+app.use('/api/marketplace', marketplaceRoutes);
+app.use('/api/trade', tradeRoutes);
+app.use('/api/plants', plantRoutes);
+app.use('/api/myplants', myPlantsRoutes);
+app.use('/api/auth', authData.router);
 
 // =======================================
 // ⭐ ESP32 센서 데이터 저장
@@ -175,16 +203,6 @@ app.post('/api/command', (req, res) => {
   res.json({ success: true });
 });
 
-// =======================================
-// 📌 REST API 기본 라우트 등록
-// =======================================
-app.use('/api/auth', authRoutes);
-app.use('/api', commentRoutes);
-app.use('/api/posts', postRoutes);
-app.use('/api/marketplace', marketplaceRoutes);
-app.use('/api/trade', tradeRoutes);
-app.use('/api/plants', plantRoutes);
-app.use('/api/myplants', myPlantsRoutes);
 
 // =======================================
 // ⭐ 식물 데이터셋 API

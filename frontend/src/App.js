@@ -21,6 +21,8 @@ import MyPage from './pages/MyPage';
 import AdminDashboard from './pages/AdminDashboard';
 import PlantInfo from './pages/PlantInfo';
 import MyPlants from './pages/MyPlants';
+import ChatPage from './pages/ChatPage';
+import ChatListPage from './pages/ChatListPage';
 
 function AppContent() {
   return (
@@ -44,6 +46,8 @@ function AppContent() {
           <Route path="/marketplace/write" element={<PrivateRoute><WriteMarketplace /></PrivateRoute>} />
           <Route path="/marketplace/edit/:id" element={<PrivateRoute><EditMarketplace /></PrivateRoute>} />
           <Route path="/marketplace/:id" element={<PrivateRoute><MarketplaceDetail /></PrivateRoute>} />
+          <Route path="/chat/:roomId" element={<ChatPage />} />
+          <Route path="/chat-list" element={<ChatListPage />} />
           {/* 관리자페이지 */}
           <Route path="/admin" element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
           {/* 마이페이지 */}
@@ -54,6 +58,7 @@ function AppContent() {
           <Route path="/myplants" element={<MyPlants />} />
           {/* 404 - 홈으로 리다이렉트 */}
           <Route path="*" element={<Navigate to="/" />} />
+
           
         </Routes>
       </Router>

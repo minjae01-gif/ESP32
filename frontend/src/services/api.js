@@ -195,4 +195,16 @@ export const myPlantsAPI = {
   deleteWateringLog: (plantId, logId) => api.delete(`/api/myplants/${plantId}/watering/${logId}`),
 };
 
+// services/api.js
+export const chatAPI = {
+  // 채팅방 생성/조회
+  createRoom: (itemId, sellerId) => api.post('/api/chat/rooms', { itemId, sellerId }),
+  // 내 채팅방 목록
+  getRooms: () => api.get('/api/chat/rooms'),
+  // 특정 방의 메시지 내역 가져오기 (나중에 구현)
+  getMessages: (roomId) => api.get(`/api/chat/rooms/${roomId}/messages`),
+
+  deleteRoom: (roomId) => api.delete(`/api/chat/rooms/${roomId}`),
+};
+
 export default api;

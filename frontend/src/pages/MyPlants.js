@@ -13,7 +13,6 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { myPlantsAPI, plantAPI } from '../services/api';
-import Layout from '../components/Layout';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/ko';
@@ -275,7 +274,7 @@ function MyPlants() {
   };
 
   return (
-    <Layout>
+    <>
       <div style={styles.container}>
         <div style={styles.header}>
           <Title level={2}>🌱 내 식물</Title>
@@ -625,14 +624,11 @@ function MyPlants() {
           </Form.Item>
         </Form>
       </Modal>
-    </Layout>
+    </>
   );
 }
 
 const styles = {
-  container: {
-    padding: '24px',
-  },
   header: {
     display: 'flex',
     justifyContent: 'space-between',

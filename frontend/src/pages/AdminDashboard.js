@@ -132,14 +132,14 @@ const fetchData = async () => {
 
   // 7. 최종 출력 (단 하나의 return만 존재해야 함)
   return (
-    <Layout>
+    
       <div style={{ padding: '24px' }}>
         <Title level={2}>🛡️ 관리자 대시보드</Title>
         <Card style={{ borderRadius: '12px' }}>
           <Tabs defaultActiveKey="1" items={tabItems} />
         </Card>
       </div>
-    </Layout>
+  
   );
 }
 

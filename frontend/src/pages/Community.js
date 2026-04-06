@@ -146,7 +146,7 @@ function Community() {
   ];
 
   return (
-    <Layout>
+    
       <div style={styles.container}>
         {/* 헤더 */}
         <div style={styles.header}>
@@ -212,7 +212,7 @@ function Community() {
           }}
         />
       </div>
-    </Layout>
+    
   );
 }
 

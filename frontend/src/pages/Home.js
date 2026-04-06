@@ -13,7 +13,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { postAPI, marketplaceAPI, sensorAPI } from '../services/api';
-import Layout from '../components/Layout';
+
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -89,7 +89,7 @@ function Home() {
   };
 
   return (
-    <Layout>
+    
            
       <div style={styles.container}>
         {/* 헤더 */}
@@ -391,7 +391,7 @@ function Home() {
           </Col>
         </Row>
       </div>
-    </Layout>
+    
   );
 }
 

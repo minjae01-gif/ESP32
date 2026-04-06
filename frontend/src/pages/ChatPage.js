@@ -119,9 +119,9 @@ useEffect(() => {
 
   
 return (
-    <Layout style={{ height: 'calc(100vh - 64px)', background: '#f0f2f5' }}>
-      <Content style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
-        {/* 상단에 버튼들이 포함된 Card */}
+    
+
+        <div style={{ height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
         <Card 
           title={
             <Space>
@@ -139,7 +139,23 @@ return (
               방 나가기
             </Button>
           }
-          style={{ flex: 1, overflowY: 'auto', marginBottom: '20px' }}
+          style={{ 
+          flex: 1, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          overflow: 'hidden', // 카드 밖으로 내용이 넘치지 않게 고정
+          marginBottom: '20px' 
+        }}
+        // Card의 헤더 부분은 고정
+        headStyle={{ flexShrink: 0 }}
+        // ⭐ 핵심: Card의 본문 영역만 스크롤 가능하게 설정
+        bodyStyle={{ 
+          flex: 1, 
+          overflowY: 'auto', 
+          padding: '20px',
+          display: 'flex',
+          flexDirection: 'column'
+        }}
         >
           <List
             dataSource={messages}
@@ -172,9 +188,9 @@ return (
           />
           <div ref={scrollRef} />
         </Card>
-        
-        {/* 하단 입력창 */}
-        <div style={{ display: 'flex', gap: '10px' }}>
+
+             {/* 하단 입력창 */}
+        <div style={{ display: 'flex', gap: '10px', flexShrink: 0 }}>
           <Input 
             value={inputValue} 
             onChange={(e) => setInputValue(e.target.value)}
@@ -183,8 +199,12 @@ return (
           />
           <Button type="primary" icon={<SendOutlined />} onClick={handleSendMessage}>보내기</Button>
         </div>
-      </Content>
-    </Layout>
+        
+        </div>
+        
+   
+
+   
   );
 }
 

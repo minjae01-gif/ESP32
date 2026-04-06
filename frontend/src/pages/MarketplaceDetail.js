@@ -191,7 +191,7 @@ function MarketplaceDetail() {
   const totalImages = item.images ? item.images.length : 0;
 
   return (
-    <Layout>
+    
       <div style={styles.container}>
         <Button
           icon={<ArrowLeftOutlined />}
@@ -442,7 +442,7 @@ function MarketplaceDetail() {
           <Comments type="item" id={id} />
         </Card>
       </div>
-    </Layout>
+    
   );
 }
 

@@ -8,6 +8,7 @@ import PrivateRoute from './components/PrivateRoute';
 // 페이지 import
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Layout from './components/Layout';
 import Home from './pages/Home';
 import DashBoard from './pages/DashBoard';
 import Community from './pages/Community';
@@ -28,6 +29,7 @@ function AppContent() {
   return (
     <AuthProvider>
       <Router>
+        <Layout>
         <Routes>
           {/* 홈 */}
           <Route path="/" element={<Home />} />
@@ -46,6 +48,7 @@ function AppContent() {
           <Route path="/marketplace/write" element={<PrivateRoute><WriteMarketplace /></PrivateRoute>} />
           <Route path="/marketplace/edit/:id" element={<PrivateRoute><EditMarketplace /></PrivateRoute>} />
           <Route path="/marketplace/:id" element={<PrivateRoute><MarketplaceDetail /></PrivateRoute>} />
+          {/* 채팅 */}
           <Route path="/chat/:roomId" element={<ChatPage />} />
           <Route path="/chat-list" element={<ChatListPage />} />
           {/* 관리자페이지 */}
@@ -61,6 +64,7 @@ function AppContent() {
 
           
         </Routes>
+        </Layout>
       </Router>
     </AuthProvider>
   );

@@ -163,7 +163,7 @@ function MyPage() {
 
   // 3. 메인 렌더링
   return (
-    <Layout>
+    
       <div style={styles.container}>
         {/* 프로필 카드 */}
         <Card style={styles.card}>
@@ -295,7 +295,7 @@ function MyPage() {
           </Form>
         </Modal>
       </div>
-    </Layout>
+    
   );
 } // <--- MyPage 함수 끝
 

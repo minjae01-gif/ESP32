@@ -14,7 +14,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { plantAPI } from '../services/api';
-import Layout from '../components/Layout';
+
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -156,7 +156,7 @@ function PlantInfo() {
   };
 
   return (
-    <Layout>
+    <>
       <div style={styles.container}>
         <div style={styles.header}>
           <Title level={2}>🌿 식물 정보 도감</Title>
@@ -496,14 +496,12 @@ function PlantInfo() {
           </Form.Item>
         </Form>
       </Modal>
-    </Layout>
+    </>
   );
 }
 
 const styles = {
-  container: {
-    padding: '24px',
-  },
+
   header: {
     display: 'flex',
     justifyContent: 'space-between',

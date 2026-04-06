@@ -13,7 +13,6 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { marketplaceAPI } from '../services/api';
-import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
 
 const { Title, Text } = Typography;
@@ -69,7 +68,7 @@ function Marketplace() {
   const reservedCount = items.filter(item => item.status === 'reserved').length;
 
   return (
-    <Layout>
+    
       <div style={styles.container}>
         {/* 헤더 */}
         <div style={styles.header}>
@@ -246,7 +245,7 @@ function Marketplace() {
           </Row>
         )}
       </div>
-    </Layout>
+    
   );
 }
 

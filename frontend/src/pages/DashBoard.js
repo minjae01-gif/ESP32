@@ -9,7 +9,7 @@ import {
   ExperimentOutlined,
   SettingOutlined
 } from '@ant-design/icons';
-import Layout from '../components/Layout';
+
 import { sensorAPI } from '../services/api';
 
 const { Title, Text } = Typography;
@@ -298,7 +298,7 @@ function DashBoard() {
       UI 렌더링
   ========================================================= */
   return (
-    <Layout>
+    
       <div style={{ padding: 24 }}>
         <Title level={2}>🌱 실시간 센서 대시보드</Title>
 
@@ -545,7 +545,7 @@ function DashBoard() {
 
         </Row>
       </div>
-    </Layout>
+    
   );
 }
 

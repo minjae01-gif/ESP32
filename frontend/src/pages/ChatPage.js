@@ -85,7 +85,7 @@ useEffect(() => {
     };
 
     // 서버로 메시지 전송
-    socket.emit('send_message', messageData);
+   
 
     console.log("보내는 데이터:", messageData); // 터미널 말고 브라우저 콘솔에서 확인!
   socket.emit('send_message', messageData);

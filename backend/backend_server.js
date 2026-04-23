@@ -158,19 +158,23 @@ let latestSensorData = {
 // ⭐ ESP32 → 서버 : 센서 데이터 수신
 // =======================================
 app.post('/sensor', (req, res) => {
-  const { soil, light, temperature, humidity } = req.body;
+  const { soil, lightRaw, lightPercent, lightLevel, temperature, humidity } = req.body;
 
   latestSensorData = {
     temperature: temperature ?? 0,
     humidity: humidity ?? 0,
     soilMoisture: soil ?? 0,
-    lightLevel: Math.round((light ?? 0) / 10),
+    lightRaw: lightRaw ?? 0,
+    lightPercent: lightPercent ?? 0,
+    lightLevel: lightLevel ?? 0,
     timestamp: new Date()
   };
 
   console.log("\n📡 [ESP32 → 서버] 센서 데이터 수신");
   console.log(`   🌱 Soil : ${latestSensorData.soilMoisture}%`);
-  console.log(`   💡 Light: ${light ?? 0} → ${latestSensorData.lightLevel}/10`);
+  console.log(`   💡 Light Raw: ${latestSensorData.lightRaw}`);
+  console.log(`   💡 Light Percent: ${latestSensorData.lightPercent}%`);
+  console.log(`   💡 Light Level: ${latestSensorData.lightLevel}/10`);
 
   res.json({ success: true, message: "Sensor data received" });
 });

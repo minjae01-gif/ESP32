@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL;
+const API_URL = process.env.REACT_APP_API_URL || 'https://plantcare-mnfu.onrender.com';
+
+console.log('🔥 API_URL:', API_URL);
 
 // Axios 인스턴스 생성
 const api = axios.create({

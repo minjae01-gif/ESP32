@@ -156,22 +156,31 @@ io.on('connection', (socket) => {
 // ⭐ ESP32 → 서버 : 센서 데이터 수신
 // =======================================
 app.post('/sensor', (req, res) => {
+  console.log('\n📩 req.body:', req.body);
+
   const {
     soil,
+    soilMoisture,
     lightRaw,
     lightPercent,
     lightLevel,
     temperature,
-    humidity
+    humidity,
+    waterLow,
+    fan,
+    pump
   } = req.body;
 
   latestSensorData = {
-    temperature: temperature ?? 0,
-    humidity: humidity ?? 0,
-    soilMoisture: soil ?? 0,
-    lightRaw: lightRaw ?? 0,
-    lightPercent: lightPercent ?? 0,
-    lightLevel: lightLevel ?? 0,
+    temperature: Number(temperature ?? 0),
+    humidity: Number(humidity ?? 0),
+    soilMoisture: Number(soilMoisture ?? soil ?? 0),
+    lightRaw: Number(lightRaw ?? 0),
+    lightPercent: Number(lightPercent ?? 0),
+    lightLevel: Number(lightLevel ?? 0),
+    waterLow: Boolean(waterLow ?? false),
+    fan: Boolean(fan ?? false),
+    pump: Boolean(pump ?? false),
     timestamp: new Date()
   };
 
@@ -189,7 +198,6 @@ app.post('/sensor', (req, res) => {
     data: latestSensorData
   });
 });
-
 // =======================================
 // ⭐ 프론트엔드 → 서버 : 최신 센서 데이터 조회
 // =======================================

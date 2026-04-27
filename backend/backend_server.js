@@ -155,7 +155,7 @@ io.on('connection', (socket) => {
 // =======================================
 // ⭐ ESP32 → 서버 : 센서 데이터 수신
 // =======================================
-app.post('/sensor', (req, res) => {
+app.post('/sensor', async (req, res) => {
   console.log('\n📩 req.body:', req.body);
 
   const {
@@ -165,47 +165,100 @@ app.post('/sensor', (req, res) => {
     lightPercent,
     lightLevel,
     temperature,
-    humidity,
-    waterLow,
-    fan,
-    pump
+    humidity
   } = req.body;
 
-  latestSensorData = {
+  const data = {
     temperature: Number(temperature ?? 0),
     humidity: Number(humidity ?? 0),
     soilMoisture: Number(soilMoisture ?? soil ?? 0),
     lightRaw: Number(lightRaw ?? 0),
     lightPercent: Number(lightPercent ?? 0),
     lightLevel: Number(lightLevel ?? 0),
-    waterLow: Boolean(waterLow ?? false),
-    fan: Boolean(fan ?? false),
-    pump: Boolean(pump ?? false),
     timestamp: new Date()
   };
 
-  console.log('\n📡 [ESP32 → 서버] 센서 데이터 수신');
-  console.log(`   🌱 Soil : ${latestSensorData.soilMoisture}%`);
-  console.log(`   💡 Light Raw: ${latestSensorData.lightRaw}`);
-  console.log(`   💡 Light Percent: ${latestSensorData.lightPercent}%`);
-  console.log(`   💡 Light Level: ${latestSensorData.lightLevel}/10`);
+  try {
+    // ⭐ DB 저장
+    await db.query(
+      `INSERT INTO sensor_data 
+      (temperature, humidity, soil_moisture, light_raw, light_percent, light_level) 
+      VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        data.temperature,
+        data.humidity,
+        data.soilMoisture,
+        data.lightRaw,
+        data.lightPercent,
+        data.lightLevel
+      ]
+    );
+
+    console.log('💾 DB 저장 성공');
+
+  } catch (err) {
+    console.error('❌ DB 저장 실패:', err);
+  }
+
+  // 기존 실시간 데이터도 유지
+  latestSensorData = data;
 
   io.emit('sensorData', latestSensorData);
 
   res.json({
     success: true,
-    message: 'Sensor data received',
-    data: latestSensorData
+    message: 'Sensor data saved',
+    data
   });
 });
 // =======================================
 // ⭐ 프론트엔드 → 서버 : 최신 센서 데이터 조회
 // =======================================
-app.get('/api/sensor/latest', (req, res) => {
-  res.json({
-    success: true,
-    data: latestSensorData
-  });
+app.get('/api/sensor/latest', async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      'SELECT * FROM sensor_data ORDER BY created_at DESC LIMIT 1'
+    );
+
+    if (rows.length === 0) {
+      return res.json({
+        success: true,
+        data: null
+      });
+    }
+
+    res.json({
+      success: true,
+      data: rows[0]
+    });
+
+  } catch (err) {
+    console.error('❌ DB 조회 실패:', err);
+
+    res.status(500).json({
+      success: false,
+      message: 'DB 조회 실패'
+    });
+  }
+});
+
+//그래프용
+
+app.get('/api/sensor/history', async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      'SELECT * FROM sensor_data ORDER BY created_at DESC LIMIT 50'
+    );
+
+    res.json({
+      success: true,
+      data: rows
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false });
+  }
 });
 
 // =======================================

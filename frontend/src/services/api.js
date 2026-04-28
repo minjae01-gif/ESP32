@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://plantcare-mnfu.onrender.com';
+const API_URL = process.env.REACT_APP_API_URL || 'https://plant-backend-mrho.onrender.com';
 
 console.log('🔥 API_URL:', API_URL);
 

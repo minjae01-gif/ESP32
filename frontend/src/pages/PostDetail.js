@@ -134,7 +134,7 @@ function PostDetail() {
             <div key={`image-${index}`} style={styles.imageBlock}>
               <div style={styles.imageContainer}>
                 <img
-                  src={`http://localhost:5000${post.images[imgIndex].image_url}`}
+                  src={`${process.env.REACT_APP_API_URL}${post.images[imgIndex].image_url}`}
                   alt={`${post.title} - ${imgIndex + 1}`}
                   style={styles.contentImage}
                   onError={(e) => {

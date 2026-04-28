@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  Card, Button, Space, Typography, Tag, Divider, 
+import {
+  Card, Button, Space, Typography, Tag, Divider,
   Avatar, Row, Col, Spin, Statistic, Carousel, App
 } from 'antd';
 import {
@@ -16,32 +16,44 @@ import {
   LeftOutlined,
   RightOutlined,
   ShopOutlined,
+  MessageOutlined
 } from '@ant-design/icons';
-import { marketplaceAPI, tradeAPI } from '../services/api';
+
+import { marketplaceAPI, tradeAPI, chatAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Layout from '../components/Layout';
 import Comments from '../components/Comments';
-import { MessageOutlined } from '@ant-design/icons';
-import { chatAPI } from '../services/api';
 
 const { Title, Text, Paragraph } = Typography;
+
+const API_URL =
+  process.env.REACT_APP_API_URL || 'https://plantcare-mnfu.onrender.com';
 
 function MarketplaceDetail() {
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
   const carouselRef = useRef(null);
-  
+
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const { message, modal } = App.useApp();
 
-
-
   useEffect(() => {
     fetchItem();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  const getImageUrl = (imageUrl) => {
+    if (!imageUrl) return '';
+
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return imageUrl;
+    }
+
+    return `${API_URL}${imageUrl}`;
+  };
 
   const fetchItem = async () => {
     try {
@@ -66,34 +78,13 @@ function MarketplaceDetail() {
     }
   };
 
-  const handleStatusChange = async (newStatus) => {
-    try {
-      const formData = new FormData();
-      formData.append('title', item.title);
-      formData.append('content', item.content);
-      formData.append('price', item.price);
-      formData.append('status', newStatus);
-
-      await marketplaceAPI.updateItem(id, formData);
-      message.success(
-        newStatus === 'sold' ? '판매완료로 변경되었습니다.' : '판매중으로 변경되었습니다.'
-      );
-      fetchItem();
-    } catch (error) {
-      message.error('상태 변경에 실패했습니다.');
-    }
-  };
-
-  
-  // 거래 요청 핸들러
   const handleTradeRequest = () => {
     if (!user) {
       message.warning('로그인이 필요합니다.');
       navigate('/login');
       return;
     }
-    
-    // modal.confirm 사용 (window.confirm보다 예쁨)
+
     modal.confirm({
       title: '거래 요청',
       content: '판매자에게 거래를 요청하시겠습니까?',
@@ -102,9 +93,8 @@ function MarketplaceDetail() {
       onOk: async () => {
         try {
           const response = await tradeAPI.sendRequest(item.id, item.user_id);
-          
+
           if (response.data.success) {
-            // ✅ 성공 팝업 (modal.success)
             modal.success({
               title: '요청 완료',
               content: '판매자에게 거래 요청을 보냈습니다!',
@@ -113,7 +103,6 @@ function MarketplaceDetail() {
         } catch (error) {
           if (error.response) {
             if (error.response.status === 409) {
-              // ⚠️ 중복 경고 팝업 (modal.warning)
               modal.warning({
                 title: '알림',
                 content: '이미 구매 요청을 보낸 상품입니다.',
@@ -130,6 +119,7 @@ function MarketplaceDetail() {
       }
     });
   };
+
   const formatPrice = (price) => {
     return new Intl.NumberFormat('ko-KR').format(price);
   };
@@ -146,24 +136,23 @@ function MarketplaceDetail() {
   };
 
   const handleStartChat = async () => {
-  if (!user) {
-    message.warning('로그인이 필요합니다.');
-    return navigate('/login');
-  }
-
-  try {
-    const response = await chatAPI.createRoom(item.id, item.user_id);
-    if (response.data.success) {
-      // 채팅 페이지로 이동하면서 roomId 전달
-      navigate(`/chat/${response.data.roomId}`);
+    if (!user) {
+      message.warning('로그인이 필요합니다.');
+      return navigate('/login');
     }
-  } catch (error) {
-    message.error(error.response?.data?.message || '채팅방 연결 실패');
-  }
-};
+
+    try {
+      const response = await chatAPI.createRoom(item.id, item.user_id);
+      if (response.data.success) {
+        navigate(`/chat/${response.data.roomId}`);
+      }
+    } catch (error) {
+      message.error(error.response?.data?.message || '채팅방 연결 실패');
+    }
+  };
 
   const isAuthor = item && user && (
-    item.user_id === user.userId || 
+    item.user_id === user.userId ||
     item.user_id === user.id ||
     item.username === user.username
   );
@@ -191,258 +180,253 @@ function MarketplaceDetail() {
   const totalImages = item.images ? item.images.length : 0;
 
   return (
-    
-      <div style={styles.container}>
-        <Button
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/marketplace')}
-          size="large"
-          style={{ marginBottom: '20px' }}
-        >
-          목록으로
-        </Button>
+    <div style={styles.container}>
+      <Button
+        icon={<ArrowLeftOutlined />}
+        onClick={() => navigate('/marketplace')}
+        size="large"
+        style={{ marginBottom: '20px' }}
+      >
+        목록으로
+      </Button>
 
-        <Card style={styles.card}>
-          <Row gutter={[32, 32]}>
-            {/* 왼쪽: 이미지 캐러셀 */}
-            <Col xs={24} md={12}>
-              {totalImages > 0 ? (
-                <div style={styles.carouselWrapper}>
-                  {/* 이미지 순서 표시 */}
-                  <div style={styles.imageCounter}>
-                    {currentImageIndex + 1}/{totalImages}
-                  </div>
+      <Card style={styles.card}>
+        <Row gutter={[32, 32]}>
+          <Col xs={24} md={12}>
+            {totalImages > 0 ? (
+              <div style={styles.carouselWrapper}>
+                <div style={styles.imageCounter}>
+                  {currentImageIndex + 1}/{totalImages}
+                </div>
 
-                  {/* 캐러셀 */}
-                  <Carousel
-                    ref={carouselRef}
-                    dots={true}
-                    afterChange={(current) => setCurrentImageIndex(current)}
-                    style={styles.carousel}
-                  >
-                    {item.images.map((image, index) => (
-                      <div key={image.id} style={styles.carouselSlide}>
-                        <img
-                          src={`http://localhost:5000${image.image_url}`}
-                          alt={`${item.title} - ${index + 1}`}
-                          style={styles.carouselImage}
-                          onError={(e) => {
-                            console.error('이미지 로드 실패:', e.target.src);
-                            e.target.style.display = 'none';
-                          }}
-                        />
-                        {item.status === 'sold' && (
-                          <div style={styles.soldOverlay}>
-                            <CheckCircleOutlined style={{ fontSize: '64px', color: '#fff' }} />
-                            <Title level={2} style={{ color: '#fff', margin: '10px 0 0 0' }}>
-                              판매완료
-                            </Title>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </Carousel>
-
-                  {/* 이전/다음 버튼 */}
-                  {totalImages > 1 && (
-                    <>
-                      <Button
-                        icon={<LeftOutlined />}
-                        onClick={() => carouselRef.current?.prev()}
-                        style={styles.prevButton}
-                        shape="circle"
-                        size="large"
+                <Carousel
+                  ref={carouselRef}
+                  dots={true}
+                  afterChange={(current) => setCurrentImageIndex(current)}
+                  style={styles.carousel}
+                >
+                  {item.images.map((image, index) => (
+                    <div key={image.id} style={styles.carouselSlide}>
+                      <img
+                        src={getImageUrl(image.image_url)}
+                        alt={`${item.title} - ${index + 1}`}
+                        style={styles.carouselImage}
+                        onError={(e) => {
+                          console.error('이미지 로드 실패:', e.target.src);
+                          e.target.style.display = 'none';
+                        }}
                       />
-                      <Button
-                        icon={<RightOutlined />}
-                        onClick={() => carouselRef.current?.next()}
-                        style={styles.nextButton}
-                        shape="circle"
-                        size="large"
-                      />
-                    </>
-                  )}
-
-                  {/* 썸네일 네비게이션 */}
-                  {totalImages > 1 && (
-                    <div style={styles.thumbnailWrapper}>
-                      {item.images.map((image, index) => (
-                        <div
-                          key={image.id}
-                          style={{
-                            ...styles.thumbnail,
-                            border: currentImageIndex === index ? '3px solid #52c41a' : '2px solid #d9d9d9',
-                          }}
-                          onClick={() => {
-                            carouselRef.current?.goTo(index);
-                            setCurrentImageIndex(index);
-                          }}
-                        >
-                          <img
-                            src={`http://localhost:5000${image.image_url}`}
-                            alt={`thumb-${index}`}
-                            style={styles.thumbnailImage}
-                          />
+                      {item.status === 'sold' && (
+                        <div style={styles.soldOverlay}>
+                          <CheckCircleOutlined style={{ fontSize: '64px', color: '#fff' }} />
+                          <Title level={2} style={{ color: '#fff', margin: '10px 0 0 0' }}>
+                            판매완료
+                          </Title>
                         </div>
-                      ))}
+                      )}
                     </div>
-                  )}
-                </div>
-              ) : (
-                <div style={styles.noImage}>
-                  <ShoppingOutlined style={{ fontSize: '64px', color: '#d9d9d9' }} />
-                  <Text type="secondary">이미지 없음</Text>
-                </div>
-              )}
-            </Col>
+                  ))}
+                </Carousel>
 
-            {/* 오른쪽: 정보 */}
-            <Col xs={24} md={12}>
-              <Space direction="vertical" size="large" style={{ width: '100%' }}>
-                {/* 상태 태그 */}
-              <div>
-                  {item.status === 'sold' ? (
-                    <Tag color="default" style={{ fontSize: '16px', padding: '8px 16px' }}>판매완료</Tag>
-                  ) : item.status === 'reserved' ? (
-                    <Tag color="orange" style={{ fontSize: '16px', padding: '8px 16px' }}>예약 중</Tag>
-                  ) : (
-                    <Tag color="green" style={{ fontSize: '16px', padding: '8px 16px' }}>판매중</Tag>
-                  )}
-                </div>
-
-                {/* 제목 */}
-                <Title level={2} style={{ margin: 0 }}>
-                  {item.title}
-                </Title>
-
-                {/* 가격 */}
-                <Card style={styles.priceCard}>
-                  <Statistic
-                    title="판매 가격"
-                    value={item.price}
-                    prefix={<DollarOutlined />}
-                    suffix="원"
-                    valueStyle={{
-                      color: item.status === 'sold' ? '#8c8c8c' : '#52c41a',
-                      fontSize: '36px',
-                      fontWeight: 'bold',
-                    }}
-                    formatter={(value) => formatPrice(value)}
-                  />
-                </Card>
-
-                <Divider />
-
-                {/* 판매자 정보 */}
-                <Space size="large">
-                  <Space>
-                    <Avatar 
-                      icon={<UserOutlined />} 
-                      style={{ backgroundColor: '#52c41a' }}
+                {totalImages > 1 && (
+                  <>
+                    <Button
+                      icon={<LeftOutlined />}
+                      onClick={() => carouselRef.current?.prev()}
+                      style={styles.prevButton}
+                      shape="circle"
                       size="large"
                     />
-                    <div>
-                      <Text type="secondary" style={{ display: 'block', fontSize: '12px' }}>
-                        판매자
-                      </Text>
-                      <Text strong style={{ fontSize: '16px' }}>
-                        {item.username}
-                      </Text>
-                    </div>
-                  </Space>
-                  
-                  <Space>
-                    <ClockCircleOutlined style={{ color: '#8c8c8c' }} />
-                    <div>
-                      <Text type="secondary" style={{ display: 'block', fontSize: '12px' }}>
-                        등록일
-                      </Text>
-                      <Text>{formatDate(item.created_at)}</Text>
-                    </div>
-                  </Space>
-                </Space>
-
-                <Divider />
-
-                {/* 상품 설명 */}
-                <div>
-                  <Text strong style={{ fontSize: '16px', display: 'block', marginBottom: '10px' }}>
-                    상품 설명
-                  </Text>
-                  <Paragraph style={styles.description}>
-                    {item.content}
-                  </Paragraph>
-                </div>
-
-                {/* 작성자 액션 버튼 */}
-               {isAuthor ? (
-                  <>
-                    <Divider />
-                    <Space wrap>
-                      <Button
-                        icon={<EditOutlined />}
-                        onClick={() => navigate(`/marketplace/edit/${id}`)}
-                        size="large"
-                      >
-                        수정
-                      </Button>
-                      
-                      <Button
-                        icon={<DeleteOutlined />}
-                        onClick={handleDelete}
-                        danger
-                        size="large"
-                      >
-                        삭제
-                      </Button>
-                    </Space>
-                  </>
-                ) : (
-                  // 🔥 구매자일 때만 보이는 버튼
-                  <>
-                    <Divider />
-                    <Button 
-                      type="primary" 
-                      size="large" 
-                      icon={<ShopOutlined />}
-                      onClick={handleTradeRequest}
-                      // 판매 중이 아닐 때(reserved, sold) 버튼 비활성화
-                      disabled={item.status !== 'selling'} 
-                      block
-                      style={{ 
-                        height: '50px', 
-                        fontSize: '18px', 
-                        background: item.status === 'selling' ? '#faad14' : '#d9d9d9', 
-                        borderColor: item.status === 'selling' ? '#faad14' : '#d9d9d9' 
-                      }}
-                    >
-                      {item.status === 'sold' ? '판매 완료된 상품입니다' : 
-                      item.status === 'reserved' ? '이미 거래 중인 상품입니다' : 
-                      '💬 판매자에게 거래 요청하기'}
-                  </Button>
-                   <Button 
-                      icon={<MessageOutlined />} 
-                      size="large" 
-                      block 
-                      onClick={handleStartChat}
-                      style={{ marginBottom: '10px' }}
-                    >
-                      판매자와 채팅하기
-                  </Button>
+                    <Button
+                      icon={<RightOutlined />}
+                      onClick={() => carouselRef.current?.next()}
+                      style={styles.nextButton}
+                      shape="circle"
+                      size="large"
+                    />
                   </>
                 )}
 
-              </Space>
-            </Col>
-          </Row>
-        </Card>
+                {totalImages > 1 && (
+                  <div style={styles.thumbnailWrapper}>
+                    {item.images.map((image, index) => (
+                      <div
+                        key={image.id}
+                        style={{
+                          ...styles.thumbnail,
+                          border: currentImageIndex === index
+                            ? '3px solid #52c41a'
+                            : '2px solid #d9d9d9',
+                        }}
+                        onClick={() => {
+                          carouselRef.current?.goTo(index);
+                          setCurrentImageIndex(index);
+                        }}
+                      >
+                        <img
+                          src={getImageUrl(image.image_url)}
+                          alt={`thumb-${index}`}
+                          style={styles.thumbnailImage}
+                          onError={(e) => {
+                            console.error('썸네일 로드 실패:', e.target.src);
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={styles.noImage}>
+                <ShoppingOutlined style={{ fontSize: '64px', color: '#d9d9d9' }} />
+                <Text type="secondary">이미지 없음</Text>
+              </div>
+            )}
+          </Col>
 
-        {/* 댓글 섹션 */}
-        <Card style={{ marginTop: '24px' }}>
-          <Comments type="item" id={id} />
-        </Card>
-      </div>
-    
+          <Col xs={24} md={12}>
+            <Space direction="vertical" size="large" style={{ width: '100%' }}>
+              <div>
+                {item.status === 'sold' ? (
+                  <Tag color="default" style={{ fontSize: '16px', padding: '8px 16px' }}>
+                    판매완료
+                  </Tag>
+                ) : item.status === 'reserved' ? (
+                  <Tag color="orange" style={{ fontSize: '16px', padding: '8px 16px' }}>
+                    예약 중
+                  </Tag>
+                ) : (
+                  <Tag color="green" style={{ fontSize: '16px', padding: '8px 16px' }}>
+                    판매중
+                  </Tag>
+                )}
+              </div>
+
+              <Title level={2} style={{ margin: 0 }}>
+                {item.title}
+              </Title>
+
+              <Card style={styles.priceCard}>
+                <Statistic
+                  title="판매 가격"
+                  value={item.price}
+                  prefix={<DollarOutlined />}
+                  suffix="원"
+                  valueStyle={{
+                    color: item.status === 'sold' ? '#8c8c8c' : '#52c41a',
+                    fontSize: '36px',
+                    fontWeight: 'bold',
+                  }}
+                  formatter={(value) => formatPrice(value)}
+                />
+              </Card>
+
+              <Divider />
+
+              <Space size="large">
+                <Space>
+                  <Avatar
+                    icon={<UserOutlined />}
+                    style={{ backgroundColor: '#52c41a' }}
+                    size="large"
+                  />
+                  <div>
+                    <Text type="secondary" style={{ display: 'block', fontSize: '12px' }}>
+                      판매자
+                    </Text>
+                    <Text strong style={{ fontSize: '16px' }}>
+                      {item.username}
+                    </Text>
+                  </div>
+                </Space>
+
+                <Space>
+                  <ClockCircleOutlined style={{ color: '#8c8c8c' }} />
+                  <div>
+                    <Text type="secondary" style={{ display: 'block', fontSize: '12px' }}>
+                      등록일
+                    </Text>
+                    <Text>{formatDate(item.created_at)}</Text>
+                  </div>
+                </Space>
+              </Space>
+
+              <Divider />
+
+              <div>
+                <Text strong style={{ fontSize: '16px', display: 'block', marginBottom: '10px' }}>
+                  상품 설명
+                </Text>
+                <Paragraph style={styles.description}>
+                  {item.content}
+                </Paragraph>
+              </div>
+
+              {isAuthor ? (
+                <>
+                  <Divider />
+                  <Space wrap>
+                    <Button
+                      icon={<EditOutlined />}
+                      onClick={() => navigate(`/marketplace/edit/${id}`)}
+                      size="large"
+                    >
+                      수정
+                    </Button>
+
+                    <Button
+                      icon={<DeleteOutlined />}
+                      onClick={handleDelete}
+                      danger
+                      size="large"
+                    >
+                      삭제
+                    </Button>
+                  </Space>
+                </>
+              ) : (
+                <>
+                  <Divider />
+                  <Button
+                    type="primary"
+                    size="large"
+                    icon={<ShopOutlined />}
+                    onClick={handleTradeRequest}
+                    disabled={item.status !== 'selling'}
+                    block
+                    style={{
+                      height: '50px',
+                      fontSize: '18px',
+                      background: item.status === 'selling' ? '#faad14' : '#d9d9d9',
+                      borderColor: item.status === 'selling' ? '#faad14' : '#d9d9d9'
+                    }}
+                  >
+                    {item.status === 'sold' ? '판매 완료된 상품입니다' :
+                      item.status === 'reserved' ? '이미 거래 중인 상품입니다' :
+                        '💬 판매자에게 거래 요청하기'}
+                  </Button>
+
+                  <Button
+                    icon={<MessageOutlined />}
+                    size="large"
+                    block
+                    onClick={handleStartChat}
+                    style={{ marginBottom: '10px' }}
+                  >
+                    판매자와 채팅하기
+                  </Button>
+                </>
+              )}
+            </Space>
+          </Col>
+        </Row>
+      </Card>
+
+      <Card style={{ marginTop: '24px' }}>
+        <Comments type="item" id={id} />
+      </Card>
+    </div>
   );
 }
 
@@ -470,7 +454,7 @@ const styles = {
     position: 'relative',
     width: '100%',
     height: '500px',
-    display: 'flex !important',
+    display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     background: '#f5f5f5',

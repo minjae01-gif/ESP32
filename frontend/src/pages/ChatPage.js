@@ -13,7 +13,7 @@ const { Content } = Layout;
 const { Text } = Typography;
 
 // 서버 주소 
-const socket = io('http://localhost:5000');
+const socket = io('https://plantcare-mnfu.onrender.com');
 
 function ChatPage() {
   const { roomId } = useParams();

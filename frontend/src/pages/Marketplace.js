@@ -174,7 +174,7 @@ function Marketplace() {
                         <div style={styles.imageWrapper}>
                           <img
                             alt={item.title}
-                            src={`http://localhost:5000${item.image_url}`}
+                            src={`${process.env.REACT_APP_API_URL}${item.image_url}`}
                             style={styles.image}
                             onError={(e) => {
                               e.target.src = 'https://via.placeholder.com/300x200?text=No+Image';

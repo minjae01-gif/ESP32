@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react'; // useEffect 추가
-import { Badge, Layout, Menu, Button } from 'antd';
+// src/components/Sidebar.js
+import React, { useState, useEffect } from 'react';
+import { Badge, Layout, Menu, Button, Avatar } from 'antd';
 import {
   HomeOutlined,
   DashboardOutlined,
@@ -15,54 +16,68 @@ import {
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import axios from 'axios'; // axios 임포트 확인!
-import { chatAPI } from '../services/api'; // chatAPI import 추가
+import { chatAPI } from '../services/api'; 
 
 const { Sider } = Layout;
 
-function Sidebar() {
+// isMobile, closeDrawer를 props로 받아서 모바일에서 메뉴 클릭 시 서랍이 닫히도록 처리
+function Sidebar({ isMobile, closeDrawer }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, unreadCount, refreshUnreadCount, logout } = useAuth();
+  const { user, logout } = useAuth();
 
-  // 전체 안 읽은 메시지 개수 상태
-  const [totalUnread] = useState(0);
+  const [totalUnread, setTotalUnread] = useState(0);
 
-  // 페이지가 바뀔 때마다 혹은 유저 상태가 바뀔 때마다 개수 업데이트
   useEffect(() => {
     refreshUnreadCount();
-  }, [location.pathname, user]); 
+  }, [user]);
+
+  const refreshUnreadCount = async () => {
+    try {
+      if (!user) return;
+      const res = await chatAPI.getUnreadTotal();
+      setTotalUnread(res.data.unreadCount);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // 메뉴 이동 시 '모바일 서랍'을 닫아주는 통합 함수
+  const handleNav = (path) => {
+    navigate(path);
+    if (isMobile && closeDrawer) closeDrawer(); 
+  };
 
   const handleLogout = () => {
     logout();
-    navigate('/dashboard');
+    handleNav('/dashboard');
   };
 
   const handleLogin = () => {
-    navigate('/login');
+    handleNav('/login');
   };
 
   const selectedKey = location.pathname;
 
-  // 메뉴 아이템 정의 (중복 제거 및 배지 적용)
+  // onClick에 전부 handleNav를 연결
   const menuItems = [
-    { key: '/', icon: <HomeOutlined />, label: '홈', onClick: () => navigate('/') },
-    { key: '/dashboard', icon: <DashboardOutlined />, label: '대시보드', onClick: () => navigate('/dashboard') },
-    { key: '/myplants', icon: <HeartOutlined />, label: '내 식물', onClick: () => navigate('/myplants') },
-    { key: '/plants', icon: <BookOutlined />, label: '식물 정보', onClick: () => navigate('/plants') },
-    { key: '/community', icon: <MessageOutlined />, label: '커뮤니티', onClick: () => navigate('/community') },
-    { key: '/marketplace', icon: <ShoppingOutlined />, label: '식물 거래', onClick: () => navigate('/marketplace') },
+    { key: '/', icon: <HomeOutlined />, label: '홈', onClick: () => handleNav('/') },
+    { key: '/dashboard', icon: <DashboardOutlined />, label: '대시보드', onClick: () => handleNav('/dashboard') },
+    { key: '/myplants', icon: <HeartOutlined />, label: '내 식물', onClick: () => handleNav('/myplants') },
+    { key: '/plants', icon: <BookOutlined />, label: '식물 정보', onClick: () => handleNav('/plants') },
+    { key: '/community', icon: <MessageOutlined />, label: '커뮤니티', onClick: () => handleNav('/community') },
+    { key: '/marketplace', icon: <ShoppingOutlined />, label: '식물 거래', onClick: () => handleNav('/marketplace') },
     {
       key: '/chat-list',
       icon: (
-        <Badge count={unreadCount} size="small" offset={[60, 0]} overflowCount={99} showZero={false} >
+        <Badge count={totalUnread} size="small" offset={[10, 0]}>
           <CommentOutlined />
         </Badge>
       ),
       label: '메시지',
-      onClick: () => navigate('/chat-list'),
+      onClick: () => handleNav('/chat-list'),
     },
-    { key: '/mypage', icon: <UserOutlined />, label: '마이페이지', onClick: () => navigate('/mypage') },
+    { key: '/mypage', icon: <UserOutlined />, label: '마이페이지', onClick: () => handleNav('/mypage') },
   ];
 
   if (user && user.role === 'admin') {
@@ -70,27 +85,32 @@ function Sidebar() {
       key: '/admin',
       icon: <SettingOutlined style={{ color: '#ff4d4f' }} />,
       label: <span style={{ color: '#ff4d4f', fontWeight: 'bold' }}>관리자 페이지</span>,
-      onClick: () => navigate('/admin'),
-      style: { marginTop: '10px', borderTop: '1px solid rgba(255,255,255,0.1)' }
+      onClick: () => handleNav('/admin'),
+      style : { marginTop: '10px', borderTop: '1px solid rgba(255,255,255,0.1)' }
     });
   }
 
   return (
     <Sider
       width={240}
-      style={{
+      // 모바일일 때는 고정(fixed)을 풀고 높이를 100%로 설정
+      style={isMobile ? { height: '100%', background: '#001529' } : {
         height: '100vh',
         position: 'fixed',
-        left: 0, top: 0, bottom: 0,
+        left: 0,
+        top: 0,
+        bottom: 0,
         background: '#001529',
         boxShadow: '2px 0 8px rgba(0,0,0,0.15)',
       }}
     >
+      {/* 로고 영역 */}
       <div style={styles.logo}>
         <span style={styles.logoIcon}>🌿</span>
         <span style={styles.logoText}>Plant Community</span>
       </div>
 
+      {/* 사용자 정보 */}
       <div style={styles.userInfo}>
         <div style={styles.userAvatar}>
           {user ? user.username?.charAt(0).toUpperCase() : '👤'}
@@ -98,8 +118,14 @@ function Sidebar() {
         <div style={styles.userName}>
           {user ? user.username : 'Guest'}
         </div>
+        {!user && (
+          <div style={{ fontSize: '12px', color: '#8c8c8c', marginTop: '4px' }}>
+            게스트 모드
+          </div>
+        )}
       </div>
 
+      {/* 메뉴 */}
       <Menu
         mode="inline"
         selectedKeys={[selectedKey]}
@@ -108,22 +134,32 @@ function Sidebar() {
         theme="dark"
       />
 
+      {/* 로그인/로그아웃 버튼 */}
       <div style={styles.authContainer}>
         {user ? (
           <Menu
             mode="inline"
             theme="dark"
             style={{ background: 'transparent', border: 'none' }}
-            items={[{
-              key: 'logout',
-              icon: <LogoutOutlined />,
-              label: '로그아웃',
-              onClick: handleLogout,
-              danger: true,
-            }]}
+            items={[
+              {
+                key: 'logout',
+                icon: <LogoutOutlined />,
+                label: '로그아웃',
+                onClick: handleLogout,
+                danger: true,
+              },
+            ]}
           />
         ) : (
-          <Button type="primary" icon={<LoginOutlined />} onClick={handleLogin} block size="large" style={{ background: '#52c41a', borderColor: '#52c41a' }}>
+          <Button
+            type="primary"
+            icon={<LoginOutlined />}
+            onClick={handleLogin}
+            block
+            size="large"
+            style={{ background: '#52c41a', borderColor: '#52c41a' }}
+          >
             로그인
           </Button>
         )}
@@ -133,56 +169,13 @@ function Sidebar() {
 }
 
 const styles = {
-  logo: {
-    height: '64px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: 'rgba(255, 255, 255, 0.05)',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-  },
-  logoIcon: {
-    fontSize: '28px',
-    marginRight: '10px',
-  },
-  logoText: {
-    color: '#fff',
-    fontSize: '18px',
-    fontWeight: 'bold',
-  },
-  userInfo: {
-    padding: '24px 20px',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-  },
-  userAvatar: {
-    width: '60px',
-    height: '60px',
-    borderRadius: '50%',
-    background: '#52c41a',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: '12px',
-  },
-  userName: {
-    color: '#fff',
-    fontSize: '16px',
-    fontWeight: '500',
-  },
-  authContainer: {
-    position: 'absolute',
-    bottom: '20px',
-    left: 0,
-    right: 0,
-  },
+  logo: { height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255, 255, 255, 0.05)', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' },
+  logoIcon: { fontSize: '28px', marginRight: '10px' },
+  logoText: { color: '#fff', fontSize: '18px', fontWeight: 'bold' },
+  userInfo: { padding: '24px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' },
+  userAvatar: { width: '60px', height: '60px', borderRadius: '50%', background: '#52c41a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 'bold', color: '#fff', marginBottom: '12px' },
+  userName: { color: '#fff', fontSize: '16px', fontWeight: '500' },
+  authContainer: { position: 'absolute', bottom: '20px', left: 0, right: 0 },
 };
-
-
 
 export default Sidebar;

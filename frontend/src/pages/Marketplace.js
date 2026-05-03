@@ -71,23 +71,23 @@ function Marketplace() {
     
       <div style={styles.container}>
         {/* 헤더 */}
-        <div style={styles.header}>
+      <div style={styles.header}>
           <Title level={2} style={{ margin: 0 }}>
             🛒 식물 거래
           </Title>
-          <Space>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%' }}>
             <Search
               placeholder="상품명 검색..."
               allowClear
               enterButton={<SearchOutlined />}
               size="large"
               onChange={(e) => setSearchText(e.target.value)}
-              style={{ width: 280 }}
+              style={{ flex: 1, minWidth: '150px' }} // 유동적으로 크기 조절
             />
             <Select
               size="large"
               defaultValue="all"
-              style={{ width: 140 }}
+              style={{ width: '120px' }}
               onChange={setStatusFilter}
             >
               <Option value="all">전체 상태</Option>
@@ -98,16 +98,18 @@ function Marketplace() {
             <Button 
               type="primary" 
               icon={<PlusOutlined />}
-              onClick={handleWriteClick}  // 수정
+              onClick={handleWriteClick}
+              size="large"
             >
               상품 등록
             </Button>
-          </Space>
+          </div>
         </div>
 
         {/* 통계 정보 */}
-        <Row gutter={16} style={{ marginBottom: '24px' }}>
-          <Col span={8}>
+        <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
+          {/* 모바일(xs)에선 반쪽(12/24), 태블릿(sm) 이상에선 1/4(6/24) */}
+          <Col xs={12} sm={6}>
             <Card style={styles.statCard}>
               <Statistic
                 title="전체 상품"
@@ -117,7 +119,7 @@ function Marketplace() {
               />
             </Card>
           </Col>
-          <Col span={8}>
+          <Col xs={12} sm={6}>
             <Card style={styles.statCard}>
               <Statistic
                 title="판매중"
@@ -127,7 +129,7 @@ function Marketplace() {
               />
             </Card>
           </Col>
-          <Col span={8}>
+          <Col xs={12} sm={6}>
             <Card style={styles.statCard}>
               <Statistic
                 title="거래중"
@@ -137,7 +139,7 @@ function Marketplace() {
               />
             </Card>
           </Col>          
-          <Col span={8}>
+          <Col xs={12} sm={6}>
             <Card style={styles.statCard}>
               <Statistic
                 title="판매완료"

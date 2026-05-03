@@ -134,16 +134,20 @@ function MyPage() {
   };
 
   const handleRejectTrade = async (requestId) => {
-  try {
-    const response = await tradeAPI.rejectRequest(requestId);
-    if (response.data.success) {
-      message.success('거래 요청을 거절했습니다.');
-      fetchMyData(); // 목록 새로고침
-    }
-  } catch (error) {
-    message.error('거절 처리 중 오류가 발생했습니다.');
-  }
-};
+      try {
+        const response = await tradeAPI.rejectRequest(requestId);
+        if (response.data.success) {
+          // 1. 성공 메시지 띄우기
+          message.success('거래 요청을 거절했습니다.');
+          
+          // 2. 굳이 무거운 fetchMyData()를 부르지 않고, 
+          // 현재 목록에서 방금 거절한 항목(requestId)만 필터링해서 즉시 삭제!
+          setRequests(prevRequests => prevRequests.filter(req => req.id !== requestId));
+        }
+      } catch (error) {
+        message.error('거절 처리 중 오류가 발생했습니다.');
+      }
+    };
 
   const handleCompleteTrade = async (requestId) => {
     try {

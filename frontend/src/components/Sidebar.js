@@ -107,10 +107,13 @@ return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto', overflowX: 'hidden' }}>
         
         {/* 1. 맨 위: 로고 영역 */}
-        <div style={styles.logo}>
-          <span style={styles.logoIcon}>🌿</span>
-          <span style={styles.logoText}>Plant Community</span>
-        </div>
+      <div 
+        style={{ ...styles.logo, cursor: 'pointer' }} 
+        onClick={() => handleNav('/')}
+      >
+        <span style={styles.logoIcon}>🌿</span>
+        <span style={styles.logoText}>Plant Community</span>
+      </div>
 
         {/* 2. 그 다음: 사용자 정보 */}
         <div style={styles.userInfo}>

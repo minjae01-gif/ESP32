@@ -324,8 +324,8 @@ function MarketplaceDetail() {
 
               <Divider />
 
-              <Space size="large">
-                <Space>
+              <Space size="large" wrap style={{ width: '100%' }}>
+                <Space style={{ whiteSpace: 'nowrap' }}>
                   <Avatar
                     icon={<UserOutlined />}
                     style={{ backgroundColor: '#52c41a' }}
@@ -341,7 +341,7 @@ function MarketplaceDetail() {
                   </div>
                 </Space>
 
-                <Space>
+                <Space style={{ whiteSpace: 'nowrap' }}>
                   <ClockCircleOutlined style={{ color: '#8c8c8c' }} />
                   <div>
                     <Text type="secondary" style={{ display: 'block', fontSize: '12px' }}>

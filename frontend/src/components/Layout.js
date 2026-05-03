@@ -65,7 +65,7 @@ function Layout({ children }) {
           </Header>
         )}
 
-        <Content style={{ padding: isMobile ? '12px' : '24px', background: '#f0f2f5', minHeight: '100vh' }}>
+        <Content style={{ padding: isMobile ? '12px' : '24px', background: '#f0f2f5', minHeight: '100vh', overflowX: 'hidden' }}>
           {children}
         </Content>
       </AntLayout>

@@ -104,6 +104,7 @@ function Sidebar({ isMobile, closeDrawer }) {
         boxShadow: '2px 0 8px rgba(0,0,0,0.15)',
       }}
     >
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}></div>
       {/* 로고 영역 */}
       <div style={styles.logo}>
         <span style={styles.logoIcon}>🌿</span>
@@ -175,7 +176,16 @@ const styles = {
   userInfo: { padding: '24px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' },
   userAvatar: { width: '60px', height: '60px', borderRadius: '50%', background: '#52c41a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 'bold', color: '#fff', marginBottom: '12px' },
   userName: { color: '#fff', fontSize: '16px', fontWeight: '500' },
-  authContainer: { position: 'absolute', bottom: '20px', left: 0, right: 0 },
+  menuContainer: {
+    flex: 1, // 남은 공간을 모두 차지하게 함
+    overflowY: 'auto', // 메뉴가 길면 여기서만 스크롤되게 함
+    overflowX: 'hidden',
+  },
+  authContainer: {
+    padding: '20px',
+    borderTop: '1px solid rgba(255, 255, 255, 0.1)', // 구분선 추가
+    flexShrink: 0, // 버튼 영역이 찌그러지지 않게 보호
+  },
 };
 
 export default Sidebar;

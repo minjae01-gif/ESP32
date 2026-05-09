@@ -15,7 +15,7 @@ import {
 import { postAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import Comments from '../components/Comments';
-// 💡 여기서 Layout import 지웠어!
+
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -164,7 +164,7 @@ function PostDetail() {
     post.username === user.username
   );
 
-  // 💡 Layout 감싼 거 제거!
+
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '100px' }}>
@@ -173,7 +173,7 @@ function PostDetail() {
     );
   }
 
-  // 💡 Layout 감싼 거 제거!
+
   if (!post) {
     return (
       <div style={styles.container}>
@@ -184,7 +184,6 @@ function PostDetail() {
     );
   }
 
-  // 💡 메인 렌더링에서도 Layout 제거하고 바로 div로 리턴!
   return (
     <div style={styles.container}>
       <Button

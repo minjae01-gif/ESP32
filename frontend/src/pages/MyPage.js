@@ -290,7 +290,7 @@ function MyPage() {
           title={<span><NotificationOutlined style={{ color: '#faad14', marginRight: 8 }} /> 받은 거래 요청 <Badge count={requests.filter(r => r.status === 'pending').length} /></span>}
         >
           <List
-            dataSource={requests}
+            dataSource={requests.filter(req => req.status !== 'rejected')}
             renderItem={(item) => (
               <List.Item 
                 actions={[

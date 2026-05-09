@@ -167,9 +167,17 @@ function PlantInfo() {
   };
 
   const handleImageChange = (info) => {
-    if (info.file.originFileObj) {
-      setImageFile(info.file.originFileObj);
-    }
+  console.log('🖼️ Upload onChange info:', info);
+  
+  // beforeUpload={() => false}일 때는 info.file이 직접 File 객체임
+  const file = info.file.originFileObj || info.file;
+  
+  if (file && file instanceof File) {
+    console.log('✅ 이미지 파일 설정됨:', file.name, file.size);
+    setImageFile(file);
+  } else {
+    console.warn('⚠️ File 객체 아님:', file);
+  }
   };
 
   return (

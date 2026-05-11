@@ -13,7 +13,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { plantAPI } from '../services/api';
+import { plantAPI, getImageUrl } from '../services/api';
 
 
 const { Title, Text, Paragraph } = Typography;
@@ -62,16 +62,33 @@ function PlantInfo() {
   };
 
   const handleEditPlant = () => {
-    if (!user) {
-      message.warning('로그인이 필요합니다.');
-      navigate('/login');
-      return;
-    }
-    setEditMode(true);
-    form.setFieldsValue(selectedPlant);
-    setModalVisible(true);
-  };
+  if (!user) {
+    message.warning('로그인이 필요합니다.');
+    navigate('/login');
+    return;
+  }
+  setEditMode(true);
+  setImageFile(null);
 
+  form.setFieldsValue({
+      name: selectedPlant.name,
+      scientific_name: selectedPlant.scientific_name,
+      habitat: selectedPlant.habitat,
+      temp_min: selectedPlant.temp_min,
+      temp_max: selectedPlant.temp_max,
+      humidity_min: selectedPlant.humidity_min,
+      humidity_max: selectedPlant.humidity_max,
+      light_min: selectedPlant.light_min,
+      light_max: selectedPlant.light_max,
+      light_description: selectedPlant.light_description,
+      soil_moisture_min: selectedPlant.soil_moisture_min,
+      soil_moisture_max: selectedPlant.soil_moisture_max,
+      watering_frequency: selectedPlant.watering_frequency,
+      description: selectedPlant.description,
+      care_tips: selectedPlant.care_tips,
+  });
+  setModalVisible(true);
+  };
   const handleDeletePlant = async () => {
     console.log('🗑️ 삭제 버튼 클릭!');
     console.log('👤 현재 사용자:', user);
@@ -106,7 +123,7 @@ function PlantInfo() {
       console.error('❌ 에러 상세:', error.response?.data);
       message.error('삭제에 실패했습니다.');
     }
-  };;
+  };
 
   const handleSubmit = async (values) => {
     console.log('🚀 폼 제출 시작:', values);
@@ -150,9 +167,17 @@ function PlantInfo() {
   };
 
   const handleImageChange = (info) => {
-    if (info.file.originFileObj) {
-      setImageFile(info.file.originFileObj);
-    }
+  console.log('🖼️ Upload onChange info:', info);
+  
+  // beforeUpload={() => false}일 때는 info.file이 직접 File 객체임
+  const file = info.file.originFileObj || info.file;
+  
+  if (file && file instanceof File) {
+    console.log('✅ 이미지 파일 설정됨:', file.name, file.size);
+    setImageFile(file);
+  } else {
+    console.warn('⚠️ File 객체 아님:', file);
+  }
   };
 
   return (
@@ -188,9 +213,9 @@ function PlantInfo() {
                     <List.Item.Meta
                       avatar={
                         <Avatar 
-                          src={plant.image_url}
-                          size={50}
-                          shape="square"
+                        src={getImageUrl(plant.image_url)}
+                        size={50}
+                        shape="square"
                         />
                       }
                       title={<Text strong>{plant.name}</Text>}
@@ -243,7 +268,7 @@ function PlantInfo() {
                 {selectedPlant.image_url && (
                   <div style={styles.imageContainer}>
                     <img 
-                      src={selectedPlant.image_url} 
+                      src={getImageUrl(selectedPlant.image_url)}
                       alt={selectedPlant.name}
                       style={styles.image}
                     />

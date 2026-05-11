@@ -1,3 +1,4 @@
-# https://www.robotstxt.org/robotstxt.html
+Sitemap: https://plant-community.vercel.app/sitemap.xml
+
 User-agent: *
-Disallow:
+Allow: /

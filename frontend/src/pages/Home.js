@@ -153,14 +153,14 @@ function Home() {
                         />
                       }
                       title={
-                        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'space-between', width: '100%' }}>
                           <Text strong style={styles.listTitle}>
                             {post.title}
                           </Text>
-                          <Tag icon={<ClockCircleOutlined />} color="default">
+                          <Tag icon={<ClockCircleOutlined />} color="default"style={{ margin: 0 }}>
                             {formatDate(post.created_at)}
                           </Tag>
-                        </Space>
+                        </div>
                       }
                       description={
                         <Space>
@@ -213,7 +213,7 @@ function Home() {
                         />
                       }
                       title={
-                        <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'space-between', width: '100%' }}>
                           <Text strong style={styles.listTitle}>
                             {item.title}
                           </Text>
@@ -221,11 +221,11 @@ function Home() {
                             <Tag color="green" style={{ fontSize: '14px', fontWeight: 'bold' }}>
                               {item.price?.toLocaleString()}원
                             </Tag>
-                            <Tag icon={<ClockCircleOutlined />} color="default">
+                            <Tag icon={<ClockCircleOutlined />} color="default" style={{ margin: 0 }}>
                               {formatDate(item.created_at)}
                             </Tag>
                           </Space>
-                        </Space>
+                        </div>
                       }
                       description={
                         <Space>
@@ -440,7 +440,8 @@ const styles = {
   },
   listTitle: {
     fontSize: '15px',
-    maxWidth: '400px',
+    maxWidth: '100%',
+    display: 'block',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',

@@ -1,21 +1,26 @@
+// src/components/Layout.js
+import React, { useState } from 'react';
+import { Layout as AntLayout, Drawer, Button, Grid } from 'antd';
+import { MenuOutlined } from '@ant-design/icons';
 import { useLocation } from 'react-router-dom';
-import React from 'react';
-import { Layout as AntLayout } from 'antd';
 import Sidebar from './Sidebar';
 
-const { Content } = AntLayout;
-
-// ❌ 여기 함수 밖(Top level)에 있던 const location... 부분은 삭제했어!
+const { Content, Header } = AntLayout;
+const { useBreakpoint } = Grid;
 
 function Layout({ children }) {
-  // ✅ 훅은 반드시 이렇게 함수 안에서만 불러야 해!
   const location = useLocation();
+  const screens = useBreakpoint();
   
-  // 사이드바를 숨기고 싶은 경로들
+  // 모바일용 햄버거 메뉴(서랍) 열림/닫힘 상태
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  
   const excludePaths = ['/login', '/register', '/signup'];
   const isExcluded = excludePaths.includes(location.pathname);
+  
+  // 모바일 화면(md 미만)인지 체크 (화면이 작아지면 true)
+  const isMobile = screens.md === false;
 
-  // 로그인 페이지 등에서는 사이드바 없이 내용만 보여줌
   if (isExcluded) {
     return (
       <div style={{ background: '#f0f2f5', minHeight: '100vh' }}>
@@ -26,9 +31,41 @@ function Layout({ children }) {
 
   return (
     <AntLayout style={{ minHeight: '100vh' }}>
-      <Sidebar />
-      <AntLayout style={{ marginLeft: 240 }}>
-        <Content style={{ padding: '24px', background: '#f0f2f5', minHeight: '100vh' }}>
+      
+      {!isMobile && <Sidebar />}
+
+      
+      {isMobile && (
+        <Drawer
+          placement="left"
+          onClose={() => setDrawerVisible(false)}
+          open={drawerVisible}
+          bodyStyle={{ padding: 0, background: '#001529' }}
+          width={240}
+          closable={false}
+        >
+         
+          <Sidebar isMobile={true} closeDrawer={() => setDrawerVisible(false)} />
+        </Drawer>
+      )}
+
+      <AntLayout style={{ marginLeft: isMobile ? 0 : 240, transition: 'all 0.2s' }}>
+        
+   
+        {isMobile && (
+          <Header style={{ background: '#fff', padding: '0 16px', display: 'flex', alignItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+            <Button 
+              type="text" 
+              icon={<MenuOutlined style={{ fontSize: '20px' }} />} 
+              onClick={() => setDrawerVisible(true)} 
+            />
+            <span style={{ fontSize: '18px', fontWeight: 'bold', marginLeft: '12px' }}>
+              🌿 Plant Community
+            </span>
+          </Header>
+        )}
+
+        <Content style={{ padding: isMobile ? '12px' : '24px', background: '#f0f2f5', minHeight: '100vh', overflowX: 'hidden' }}>
           {children}
         </Content>
       </AntLayout>

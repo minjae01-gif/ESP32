@@ -11,7 +11,6 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { postAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import Layout from '../components/Layout';
 
 const { Title } = Typography;
 const { Search } = Input;
@@ -82,7 +81,7 @@ function Community() {
       title: '번호',
       dataIndex: 'id',
       key: 'id',
-      width: 80,
+      width: 60, // 모바일 공간 확보를 위해 약간 줄임
       align: 'center',
       render: (id) => <Badge count={id} style={{ backgroundColor: '#52c41a' }} />,
     },
@@ -90,22 +89,21 @@ function Community() {
       title: '제목',
       dataIndex: 'title',
       key: 'title',
-      ellipsis: true,
+      // ellipsis를 주면 제목이 길어도 한 줄로 자르고 ... 처리해 줌
+      ellipsis: true, 
       render: (text, record) => {
         return (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {record.image_url && (
-              <Tag color="green" icon={<EditOutlined />}>
-                이미지
+              <Tag color="green" icon={<EditOutlined />} style={{ margin: 0 }}>
+                사진
               </Tag>
             )}
             <span
-              onClick={() => navigate(`/community/${record.id}`)}
               style={{
                 fontSize: '15px',
                 fontWeight: '500',
                 color: '#262626',
-                cursor: 'pointer',
               }}
             >
               {text}
@@ -118,14 +116,14 @@ function Community() {
       title: '작성자',
       dataIndex: 'username',
       key: 'username',
-      width: 150,
+      width: 100, // 모바일 공간 확보
       align: 'center',
       render: (username, record) => (
-        <Space>
+        <Space style={{ whiteSpace: 'nowrap' }}> 
           <UserOutlined style={{ color: '#52c41a' }} />
           <span style={{ fontWeight: '500' }}>{username}</span>
           {record.user_id === user?.userId && (
-            <Tag color="green">내글</Tag>
+            <Tag color="green" style={{ margin: 0 }}>내글</Tag>
           )}
         </Space>
       ),
@@ -134,10 +132,10 @@ function Community() {
       title: '작성일',
       dataIndex: 'created_at',
       key: 'created_at',
-      width: 150,
+      width: 120, // 모바일 공간 확보
       align: 'center',
       render: (date) => (
-        <Space>
+        <Space style={{ whiteSpace: 'nowrap' }}>
           <ClockCircleOutlined style={{ color: '#8c8c8c' }} />
           <span style={{ color: '#595959' }}>{formatDate(date)}</span>
         </Space>
@@ -146,35 +144,35 @@ function Community() {
   ];
 
   return (
-    
       <div style={styles.container}>
         {/* 헤더 */}
         <div style={styles.header}>
           <Title level={2} style={{ margin: 0 }}>
             💬 커뮤니티
           </Title>
-          <Space>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%', maxWidth: '400px' }}>
             <Search
               placeholder="제목, 작성자 검색..."
               allowClear
               enterButton={<SearchOutlined />}
               size="large"
               onChange={(e) => setSearchText(e.target.value)}
-              style={{ width: 300 }}
+              style={{ flex: 1, minWidth: '200px' }} // 유동적으로 크기 조절
             />
             <Button 
               type="primary" 
               icon={<PlusOutlined />}
-              onClick={handleWriteClick}  // navigate 대신 함수 호출
+              onClick={handleWriteClick}
+              size="large"
             >
               글쓰기
             </Button>
-          </Space>
+          </div>
         </div>
 
         {/* 통계 정보 */}
         <div style={styles.stats}>
-          <Space size="large">
+          <Space size="large" wrap>
             <span>
               전체 게시글: <strong style={{ color: '#52c41a', fontSize: '16px' }}>
                 {filteredPosts.length}
@@ -196,6 +194,7 @@ function Community() {
           dataSource={filteredPosts}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 'max-content' }} 
           pagination={{
             pageSize: 15,
             showSizeChanger: false,
@@ -212,7 +211,6 @@ function Community() {
           }}
         />
       </div>
-    
   );
 }
 
@@ -222,13 +220,14 @@ const styles = {
     background: '#fff',
     borderRadius: '12px',
     boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+    overflow: 'hidden', 
   },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '24px',
-    flexWrap: 'wrap',
+    flexWrap: 'wrap', 
     gap: '16px',
   },
   stats: {

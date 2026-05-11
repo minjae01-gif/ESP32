@@ -1,6 +1,6 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "식물 커뮤니티",
+  "name": "Plant Community - 스마트 반려식물 관리",
   "icons": [
     {
       "src": "favicon.ico",

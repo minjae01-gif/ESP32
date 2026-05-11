@@ -26,6 +26,13 @@ api.interceptors.request.use(
   }
 );
 
+//이미지 경로 추가
+export const getImageUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `${API_URL}${url}`;
+};
+
 // 인증 API
 export const authAPI = {
   // 회원가입

@@ -17,7 +17,7 @@ router.post(
     try {
 
       const userId =
-        req.user.id;
+        req.user.userId;
 
       const {
         device_key,
@@ -73,6 +73,45 @@ router.post(
         success: true,
         message:
           '디바이스 등록 완료'
+      });
+
+    } catch (err) {
+
+      console.error(err);
+
+      res.status(500).json({
+        success: false
+      });
+    }
+  }
+);
+
+// ==============================
+// 내 디바이스 목록 조회
+// ==============================
+router.get(
+  '/my',
+  authenticateToken,
+  async (req, res) => {
+
+    try {
+
+      const userId =
+        req.user.userId;
+
+      const [rows] = await db.query(
+        `
+        SELECT *
+        FROM user_devices
+        WHERE user_id = ?
+        ORDER BY id DESC
+        `,
+        [userId]
+      );
+
+      res.json({
+        success: true,
+        devices: rows
       });
 
     } catch (err) {

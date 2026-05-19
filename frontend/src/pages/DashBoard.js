@@ -1,5 +1,19 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Card, Row, Col, Typography, Tag, Space, Button, message, InputNumber, Switch, Select, Divider } from 'antd';
+import {
+  Card,
+  Row,
+  Col,
+  Typography,
+  Tag,
+  Space,
+  Button,
+  message,
+  Input,
+  InputNumber,
+  Switch,
+  Select,
+  Divider
+} from 'antd';
 import {
   ThunderboltOutlined,
   CloudOutlined,
@@ -10,7 +24,7 @@ import {
   SettingOutlined
 } from '@ant-design/icons';
 
-import { sensorAPI } from '../services/api';
+import api, { sensorAPI, deviceAPI } from '../services/api';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -152,6 +166,11 @@ function DashBoard() {
     [speciesList, selectedSpeciesId]
   );
 
+  const [deviceKey, setDeviceKey] = useState('');
+  const [deviceName, setDeviceName] = useState('');
+  const [myDevices, setMyDevices] = useState([]);
+  const [selectedDevice, setSelectedDevice] = useState('');
+
   // ⭐ 새 설정 상태 (백엔드에 ledOnHoursPerDay 추가됨)
   const [settings, setSettings] = useState({
     ledOffHour: 22,
@@ -160,19 +179,33 @@ function DashBoard() {
     autoWaterEnabled: true
   });
 
+  
+
   /* ---------------------- 데이터 가져오기 ---------------------- */
   useEffect(() => {
-    fetchSensorData();
-    fetchSettings();
+
+    fetchMyDevices();
+
     fetchSpecies();
 
-    const interval = setInterval(fetchSensorData, 15000);
+    if (!selectedDevice) return;
+
+    fetchSensorData();
+    fetchSettings();
+
+    const interval = setInterval(() => {
+
+      fetchSensorData();
+
+    }, 15000);
+
     return () => clearInterval(interval);
-  }, []);
+
+  }, [selectedDevice]);
 
   const fetchSensorData = async () => {
     try {
-      const res = await sensorAPI.getLatestData();
+      const res = await sensorAPI.getLatestData(selectedDevice);
       if (res.data.success && res.data.data) {
       setSensorData(res.data.data);
     }
@@ -185,7 +218,7 @@ function DashBoard() {
 
   const fetchSettings = async () => {
     try {
-      const res = await sensorAPI.getSettings();
+      const res = await sensorAPI.getSettings(selectedDevice);
       if (res.data.success) {
         // 서버 settings에 ledOnHoursPerDay가 없을 수도 있으니 기본값 보정
         setSettings(prev => ({
@@ -209,6 +242,72 @@ function DashBoard() {
       message.error("식물 데이터셋을 불러오지 못했습니다. 서버 /api/species 확인!");
     }
   };
+
+  const fetchMyDevices = async () => {
+
+  try {
+
+    const res =
+      await deviceAPI.getMyDevices();
+
+    if (res.data.success) {
+
+      setMyDevices(
+        res.data.devices
+      );
+
+      // 첫 디바이스 자동 선택
+      if (
+        res.data.devices.length > 0
+      ) {
+
+        setSelectedDevice(
+          res.data.devices[0].device_key
+        );
+      }
+    }
+
+  } catch (err) {
+
+    console.error(err);
+  }
+};
+
+
+const registerDevice = async () => {
+
+  try {
+
+    const res = await api.post(
+      '/api/device/register',
+      {
+        device_key: deviceKey,
+        device_name: deviceName
+      }
+    );
+
+    if (res.data.success) {
+
+      message.success(
+        '디바이스 등록 성공'
+      );
+
+      setDeviceKey('');
+      setDeviceName('');
+
+      fetchMyDevices();
+    }
+
+  } catch (err) {
+
+    console.error(err);
+
+    message.error(
+      err?.response?.data?.message ||
+      '등록 실패'
+    );
+  }
+};
 
   /* ---------------------- 식물 프리셋 적용 ---------------------- */
   const applyPlantPreset = () => {
@@ -234,7 +333,10 @@ function DashBoard() {
     setControlLoading(true);
     try {
       const command = ledStatus ? "led_off" : "led_on";
-      const res = await sensorAPI.sendCommand(command);
+      const res = await sensorAPI.sendCommand(
+      command,
+      selectedDevice
+    );
 
       if (res.data.success) {
         setLedStatus(!ledStatus);
@@ -253,7 +355,10 @@ function DashBoard() {
 
     try {
       const command = motorStatus ? "motor_off" : "motor_on";
-      const res = await sensorAPI.sendCommand(command);
+      const res = await sensorAPI.sendCommand(
+      command,
+      selectedDevice
+    );
 
       if (res.data.success) {
         setMotorStatus(!motorStatus);
@@ -269,7 +374,10 @@ function DashBoard() {
   /* ---------------------- 설정 업데이트 ---------------------- */
   const updateSettings = async () => {
     try {
-      const res = await sensorAPI.updateSettings(settings);
+      const res = await sensorAPI.updateSettings({
+      ...settings,
+      device_key: selectedDevice
+    });
       if (res.data.success) {
         message.success("설정이 저장되었습니다!");
       } else {
@@ -303,7 +411,70 @@ function DashBoard() {
     
       <div style={{ padding: 24 }}>
         <Title level={2}>🌱 실시간 센서 대시보드</Title>
+        <Card
+              style={{
+                marginBottom: 24,
+                borderRadius: 16
+              }}
+            >
 
+              <Space
+                direction="vertical"
+                style={{ width: '100%' }}
+              >
+
+                <Title level={4}>
+                  🔐 디바이스 연결
+                </Title>
+
+                <Input
+                  placeholder="디바이스 인증키 입력"
+                  value={deviceKey}
+                  onChange={(e) =>
+                    setDeviceKey(e.target.value)
+                  }
+                />
+                <Input
+                  placeholder="디바이스 이름 입력"
+                  value={deviceName}
+                  onChange={(e) =>
+                    setDeviceName(e.target.value)
+                  }
+                />
+
+                <Button
+                  type="primary"
+                  onClick={registerDevice}
+                >
+                  디바이스 등록
+                </Button>
+
+                <Divider />
+
+                <Text strong>
+                  내 디바이스 선택
+                </Text>
+
+            <Select
+              style={{ width: '100%' }}
+              value={selectedDevice}
+              onChange={setSelectedDevice}
+            >
+
+              {myDevices.map((d) => (
+                <Option
+                  key={d.device_key}
+                  value={d.device_key}
+                >
+                  {d.device_name} ({d.device_key})
+                </Option>
+              ))}
+
+            </Select>
+
+          </Space>
+
+        </Card>
         <Row gutter={[24, 24]} style={{ marginTop: 32 }}>
 
           {/* ⭐ 토양습도 게이지 */}

@@ -518,6 +518,12 @@ if (!hasAccess) {
   });
 }
 
+console.log("🔥 /api/command 호출");
+console.log("device_key =", device_key);
+console.log("command =", command);
+
+try {
+
   await db.query(
   `
   INSERT INTO device_commands
@@ -525,7 +531,17 @@ if (!hasAccess) {
   VALUES (?, ?)
   `,
   [device_key, command]
-);
+  );
+
+  console.log("✅ INSERT 성공");
+
+} catch(err) {
+
+  console.error(
+    "❌ INSERT 실패",
+    err
+  );
+}
 
   console.log(
     '📤 명령 저장:',

@@ -2,9 +2,9 @@ import axios from 'axios';
 
 const API_URL =
   process.env.REACT_APP_API_URL ||
-  'https://plant-backend-mrho.onrender.com';
+  'https://plant-backend-production.up.railway.app';
 
-console.log('🔥 API_URL:', API_URL);
+console.log(' API_URL:', API_URL);
 
 // Axios 인스턴스 생성
 const api = axios.create({

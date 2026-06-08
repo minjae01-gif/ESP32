@@ -155,6 +155,7 @@ function DashBoard() {
   const [loading, setLoading] = useState(true);
   const [ledStatus, setLedStatus] = useState(false);
   const [motorStatus, setMotorStatus] = useState(false);
+  const [fanStatus, setFanStatus] = useState(false);
   const [controlLoading, setControlLoading] = useState(false);
 
   // ⭐ 식물 데이터
@@ -405,23 +406,86 @@ const registerDevice = async () => {
     }
   };
 
-  /* ---------------------- 설정 업데이트 ---------------------- */
-  const updateSettings = async () => {
-    try {
-      const res = await sensorAPI.updateSettings({
+/* ---------------------- 팬 제어 ---------------------- */
+const handleFanControl = async () => {
+
+  setControlLoading(true);
+
+  try {
+
+    const command =
+      fanStatus
+        ? "fan_off"
+        : "fan_on";
+
+    const res =
+      await sensorAPI.sendCommand(
+        command,
+        selectedDevice
+      );
+
+    if (res.data.success) {
+
+      setFanStatus(!fanStatus);
+
+      message.success(
+        fanStatus
+          ? "팬 OFF"
+          : "팬 ON"
+      );
+    }
+
+  } catch {
+
+    message.error(
+      "팬 제어 실패"
+    );
+
+  } finally {
+
+    setControlLoading(false);
+  }
+};
+
+
+ /* ---------------------- 설정 업데이트 ---------------------- */
+const updateSettings = async () => {
+
+  try {
+
+    const res = await sensorAPI.updateSettings({
       ...settings,
       device_key: selectedDevice
     });
-      if (res.data.success) {
-        message.success("설정이 저장되었습니다!");
-      } else {
-        message.error("설정 저장 실패(서버 응답 실패)");
-      }
-    } catch (e) {
-      console.error(e);
-      message.error("설정 저장 실패");
+
+    if (res.data.success) {
+
+      // 자동제어 설정 저장 후 LED 자동모드 복귀
+      await sensorAPI.sendCommand(
+        "led_auto",
+        selectedDevice
+      );
+
+      message.success(
+        "설정 저장 및 자동모드 적용 완료"
+      );
+
+    } else {
+
+      message.error(
+        "설정 저장 실패(서버 응답 실패)"
+      );
     }
-  };
+
+  } catch (e) {
+
+    console.error(e);
+
+    message.error(
+      "설정 저장 실패"
+    );
+  }
+};
 
   /* =========================================================
       게이지 단계 색상 설정
@@ -606,7 +670,63 @@ const registerDevice = async () => {
               </div>
             </Card>
           </Col>
+          
+          {/* ⭐ 팬 제어 */}
+          <Col xs={12} md={6}>
+            <Card
+              style={{ borderRadius: 16 }}
+              hoverable
+            >
 
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: 24
+                }}
+              >
+
+                <CloudOutlined
+                  style={{
+                    fontSize: 48,
+                    color: fanStatus
+                      ? "#52c41a"
+                      : "#ccc"
+                  }}
+                />
+
+                <Title level={4}>
+                  환기팬
+                </Title>
+
+                <Tag
+                  color={
+                    fanStatus
+                      ? "green"
+                      : "default"
+                  }
+                >
+                  {fanStatus
+                    ? "작동중"
+                    : "정지"}
+                </Tag>
+
+                <Button
+                  type="primary"
+                  block
+                  loading={controlLoading}
+                  onClick={handleFanControl}
+                  style={{ marginTop: 12 }}
+                >
+                  {fanStatus
+                    ? "팬 정지"
+                    : "팬 작동"}
+                </Button>
+
+              </div>
+
+            </Card>
+          </Col>
+          
           {/* ⭐ 자동 설정 패널 */}
           <Col xs={24} md={12}>
             <Card style={{ borderRadius: 16 }} hoverable>
@@ -739,6 +859,9 @@ const registerDevice = async () => {
                   </Tag>
                   <Tag color={motorStatus ? "blue" : "default"}>
                     펌프: {motorStatus ? "ON" : "OFF"}
+                  </Tag>
+                  <Tag color={fanStatus ? "green" : "default"}>
+                    팬: {fanStatus ? "ON" : "OFF"}
                   </Tag>
                 </div>
 

@@ -626,103 +626,138 @@ const updateSettings = async () => {
             </Card>
           </Col>
 
-          {/* ⭐ LED 제어 */}
-          <Col xs={12} md={6}>
-            <Card style={{ borderRadius: 16 }} hoverable>
-              <div style={{ textAlign: "center", padding: 24 }}>
-                <BulbFilled style={{ fontSize: 48, color: ledStatus ? "#faad14" : "#ccc" }} />
-                <Title level={4}>LED 조명</Title>
-
-                <Tag color={ledStatus ? "gold" : "default"}>{ledStatus ? "켜짐" : "꺼짐"}</Tag>
-
-                <Button
-                  type="primary"
-                  block
-                  loading={controlLoading}
-                  onClick={handleLedControl}
-                  style={{ marginTop: 12 }}
-                >
-                  {ledStatus ? "LED 끄기" : "LED 켜기"}
-                </Button>
-              </div>
-            </Card>
-          </Col>
-
-          {/* ⭐ 펌프 제어 */}
-          <Col xs={12} md={6}>
-            <Card style={{ borderRadius: 16 }} hoverable>
-              <div style={{ textAlign: "center", padding: 24 }}>
-                <ExperimentOutlined style={{ fontSize: 48, color: motorStatus ? "#1890ff" : "#ccc" }} />
-                <Title level={4}>워터펌프</Title>
-
-                <Tag color={motorStatus ? "blue" : "default"}>{motorStatus ? "작동중" : "정지"}</Tag>
-
-                <Button
-                  type="primary"
-                  danger={motorStatus}
-                  block
-                  onClick={handleMotorControl}
-                  loading={controlLoading}
-                  style={{ marginTop: 12 }}
-                >
-                  {motorStatus ? "펌프 정지" : "펌프 작동"}
-                </Button>
-              </div>
-            </Card>
-          </Col>
-          
-          {/* ⭐ 팬 제어 */}
-          <Col xs={12} md={6}>
+          {/* ⭐ LED / 펌프 / 팬 제어 */}
+          <Col xs={24} md={12}>
             <Card
-              style={{ borderRadius: 16 }}
-              hoverable
+              style={{
+                borderRadius: 16
+              }}
             >
 
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: 24
-                }}
-              >
+              <Row gutter={[8, 8]}>
 
-                <CloudOutlined
-                  style={{
-                    fontSize: 48,
-                    color: fanStatus
-                      ? "#52c41a"
-                      : "#ccc"
-                  }}
-                />
+                {/* LED */}
+                <Col span={8}>
+                  <Card size="small">
+                    <div style={{ textAlign: "center" }}>
 
-                <Title level={4}>
-                  환기팬
-                </Title>
+                      <BulbFilled
+                        style={{
+                          fontSize: 28,
+                          color: ledStatus
+                            ? "#faad14"
+                            : "#ccc"
+                        }}
+                      />
 
-                <Tag
-                  color={
-                    fanStatus
-                      ? "green"
-                      : "default"
-                  }
-                >
-                  {fanStatus
-                    ? "작동중"
-                    : "정지"}
-                </Tag>
+                      <div style={{ marginTop: 8 }}>
+                        <Tag
+                          color={
+                            ledStatus
+                              ? "gold"
+                              : "default"
+                          }
+                        >
+                          LED
+                        </Tag>
+                      </div>
 
-                <Button
-                  type="primary"
-                  block
-                  loading={controlLoading}
-                  onClick={handleFanControl}
-                  style={{ marginTop: 12 }}
-                >
-                  {fanStatus
-                    ? "팬 정지"
-                    : "팬 작동"}
-                </Button>
+                      <Button
+                        size="small"
+                        type="primary"
+                        block
+                        loading={controlLoading}
+                        onClick={handleLedControl}
+                      >
+                        {ledStatus ? "OFF" : "ON"}
+                      </Button>
 
-              </div>
+                    </div>
+                  </Card>
+                </Col>
+
+                {/* 펌프 */}
+                <Col span={8}>
+                  <Card size="small">
+                    <div style={{ textAlign: "center" }}>
+
+                      <ExperimentOutlined
+                        style={{
+                          fontSize: 28,
+                          color: motorStatus
+                            ? "#1890ff"
+                            : "#ccc"
+                        }}
+                      />
+
+                      <div style={{ marginTop: 8 }}>
+                        <Tag
+                          color={
+                            motorStatus
+                              ? "blue"
+                              : "default"
+                          }
+                        >
+                          펌프
+                        </Tag>
+                      </div>
+
+                      <Button
+                        size="small"
+                        type="primary"
+                        block
+                        danger={motorStatus}
+                        loading={controlLoading}
+                        onClick={handleMotorControl}
+                      >
+                        {motorStatus ? "OFF" : "ON"}
+                      </Button>
+
+                    </div>
+                  </Card>
+                </Col>
+
+                {/* 팬 */}
+                <Col span={8}>
+                  <Card size="small">
+                    <div style={{ textAlign: "center" }}>
+
+                      <CloudOutlined
+                        style={{
+                          fontSize: 28,
+                          color: fanStatus
+                            ? "#52c41a"
+                            : "#ccc"
+                        }}
+                      />
+
+                      <div style={{ marginTop: 8 }}>
+                        <Tag
+                          color={
+                            fanStatus
+                              ? "green"
+                              : "default"
+                          }
+                        >
+                          팬
+                        </Tag>
+                      </div>
+
+                      <Button
+                        size="small"
+                        type="primary"
+                        block
+                        loading={controlLoading}
+                        onClick={handleFanControl}
+                      >
+                        {fanStatus ? "OFF" : "ON"}
+                      </Button>
+
+                    </div>
+                  </Card>
+                </Col>
+
+              </Row>
 
             </Card>
           </Col>

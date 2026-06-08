@@ -498,7 +498,7 @@ const updateSettings = async () => {
 
   const lightLevels = [
     { min: 0, max: 30, color: "#8c8c8c", label: "어두움", range: "7~10" },
-    { min: 30, max: 80, color: "#d4fa14", label: "적당함", range: "3~6" },
+    { min: 30, max: 80, color: "#c8fa14d7", label: "적당함", range: "3~6" },
     { min: 80, max: 100, color: "#52c41a", label: "밝음", range: "0~2" },
   ];
 

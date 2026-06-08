@@ -492,13 +492,13 @@ const updateSettings = async () => {
   ========================================================= */
   const soilLevels = [
     { min: 0, max: 29, color: "#ff4d4f", label: "건조함" },
-    { min: 30, max: 59, color: "#a6fa14", label: "적당함" },
+    { min: 30, max: 59, color: "#fafa14", label: "적당함" },
     { min: 60, max: 100, color: "#52c41a", label: "습함" },
   ];
 
   const lightLevels = [
     { min: 0, max: 30, color: "#8c8c8c", label: "어두움", range: "7~10" },
-    { min: 30, max: 80, color: "#faad14", label: "적당함", range: "3~6" },
+    { min: 30, max: 80, color: "#d4fa14", label: "적당함", range: "3~6" },
     { min: 80, max: 100, color: "#52c41a", label: "밝음", range: "0~2" },
   ];
 

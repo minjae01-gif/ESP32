@@ -492,7 +492,7 @@ const updateSettings = async () => {
   ========================================================= */
   const soilLevels = [
     { min: 0, max: 29, color: "#ff4d4f", label: "건조함" },
-    { min: 30, max: 59, color: "#faad14", label: "적당함" },
+    { min: 30, max: 59, color: "#a6fa14", label: "적당함" },
     { min: 60, max: 100, color: "#52c41a", label: "습함" },
   ];
 

@@ -2,9 +2,9 @@ import axios from 'axios';
 
 const API_URL =
   process.env.REACT_APP_API_URL ||
-  'https://plant-backend-mrho.onrender.com';
+  'https://plant-backend-production.up.railway.app';
 
-console.log('🔥 API_URL:', API_URL);
+console.log(' API_URL:', API_URL);
 
 // Axios 인스턴스 생성
 const api = axios.create({
@@ -32,16 +32,19 @@ api.interceptors.request.use(
 
 // 이미지 경로 변환
 export const getImageUrl = (url) => {
-  if (!url) return null;
+  // 1. 진짜 비어있거나, 글자 'null' 또는 'undefined'인 경우 확실하게 차단
+  if (!url || url === 'null' || url === 'undefined') return null;
 
-  if (
-    url.startsWith('http://') ||
-    url.startsWith('https://')
-  ) {
+  // 2. 이미 완전한 외부 링크(http)인 경우 그대로 사용
+  if (url.startsWith('http://') || url.startsWith('https://')) {
     return url;
   }
 
-  return `${API_URL}${url}`;
+  // 3. 백엔드 주소와 이미지 경로가 깔끔하게 합쳐지도록 슬래시(/) 정리
+  const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+  const imagePath = url.startsWith('/') ? url : `/${url}`;
+
+  return `${baseUrl}${imagePath}`;
 };
 
 // =========================
